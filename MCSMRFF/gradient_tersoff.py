@@ -139,7 +139,6 @@ inner_cutoffs = {}
 for type_i in tersoff_types:
 	for type_j in tersoff_types:
 		for s in tersoff_strings:
-			print s
 			types = s[:3]
 			R, D = float(s[13]), float(s[14])
 			if types == (type_i.element_name, type_j.element_name, type_j.element_name):
