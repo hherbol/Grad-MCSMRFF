@@ -42,52 +42,28 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 		
 	You should see the message "Hi 'username'! You've successfully authenicated, but GitHub does not provide shell access."
 
-8.	Clone repository into src folder
+8.	Clone repository wherever
 	
-		git init
-		
-		git remote add origin git@github.com:jminuse/lammps-min-params.git
-		
-		git fetch
-		
-		git checkout -t origin/master
+		git clone git@github.com:hherbol/Grad-MCSMRFF.git
 
-	"git checkout -t origin/master" may give the error "Untracked working tree file 'FILE_NAME_HERE' would be overwritten by merge."
+9.  Copy over contents of Grad-MCSMRFF/LAMMPS to your lammps src folder.  Note, this overwrites the min.h and pair_tersoff.h files.
 
-	In this case, the simplest option is to delete the offending file, then repeat
+10. Make using the new Makefile.mcsmrff
 
-		rm FILE_NAME_HERE
+		make mcsmrff -j 4
 
-		git checkout -t origin/master 
-
-	until "Untracked working tree file" is replaced by a message like "Branch master set up to track remote branch master from origin."
-
-9. You're done! Now each time you sit down to work, just update your local copy via:
-
-		git pull
-
-	And when you save your changes:
-
-		git add -u
-
-		git commit -m "Comment about the changes"
-
-		git push
-
-	This will make your changes appear to others when they use "git pull" later.
+11. You're done! Now you can use lammps with the lmp_mcsmrff file in your lammps/src directory.
 
 # To parameterize a force field
 
-1.	Build example structures for yoru system in Avogadro (including any OPLS bonds)
+1.	Build example structures for your system in Avogadro (including any OPLS bonds)
 
 2.	Optimize with orca (e.g. Opt B97-D3 def2-TZVP)
 
 3.	Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)
 
-4.	Put molecule file system.cml in orca output directory
+4.	Great a training set directory that houses directories for each orca result.  Each directory must include the .out, .engrad and system.cml file for that system
 
-5.	Run `python run_min_params.py RUN_NAME`. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.
+5.	Run `python gradient_tersoff.py RUN_NAME`. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.
 
-7.	When error is reasonable (e.g. below 10%) `cp lammps/RUN_NAME_best.tersoff lammps/md_input.tersoff`. This allows you to run an annealing job with these parameters using `python run_normal.py RUN_NAME_2`
-
-9.	See what went wrong and adjust parameter guess (lammps/input.tersoff), bounds, or data set. Frames from `view lammps/RUN_NAME_2` can be used as example structures. 
+6.  ...
