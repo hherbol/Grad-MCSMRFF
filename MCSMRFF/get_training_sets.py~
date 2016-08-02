@@ -1,0 +1,15 @@
+from merlin import *
+import shutil
+
+filename = "noH3_data.txt"
+ifile = open(filename,"r")
+foldernames = []
+for line in ifile:	
+	linestrip = line.strip()
+	foldernames.append(linestrip)
+
+for outer in ['/fs/home/afh72/MCSMRFF/']: 
+	directories = next(os.walk(outer+'training_sets'))[1]
+	for name in directories:
+		if name in foldernames:
+			shutil.move('/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/orca/%s'%name,'/fs/home/afh72/MCSMRFF/training_sets')
