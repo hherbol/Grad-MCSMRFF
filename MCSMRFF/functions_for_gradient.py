@@ -78,7 +78,9 @@ Cl Cl Cl         '''+write_line(tersoff_params,98))
 def write_line(tersoff,i): #write a single line of a tersoff input file (given the tersoff list and the index of the line. primarily written in conjunction with write_params
 	return ("%f   %f   %f   %f   %f   %f\n\t\t %f   %f   %f   %f   %f   %f   %f   %f\n\n" % (tersoff[i],tersoff[i+1],tersoff[i+2],tersoff[i+3],tersoff[i+4],tersoff[i+5],tersoff[i+6],tersoff[i+7],tersoff[i+8],tersoff[i+9],tersoff[i+10],tersoff[i+11],tersoff[i+12],tersoff[i+13]))
 
-def run_lammps(lj_params,tersoff_params,run_name)
+def run_lammps(lj_params,tersoff_params,run_name):
+	#CURRENTLY DOES NOTHING
+	return
 
 lj,tersoff = read_params("input_test.tersoff")
 write_params(lj,tersoff,"test.tersoff")
