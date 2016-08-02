@@ -80,7 +80,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 
 1.	Build example structures for yoru system in Avogadro (including any OPLS bonds)
 
-2.	Optimize with orca (e.g. Opt B98-D3 def2-TZVP)
+2.	Optimize with orca (e.g. Opt B97-D3 def2-TZVP)
 
 3.	Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)
 
