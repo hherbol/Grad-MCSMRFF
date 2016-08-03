@@ -1,6 +1,7 @@
 from merlin import *
 import shutil, hashlib, re
 import os, sys
+import cPickle as pickle
 #This file contains a few functions for use when making the gradient optimization methods for MCSMRFF
 #It is now fully set up to run one LAMMPS simulation
 
@@ -83,7 +84,20 @@ def write_param_line(tersoff,i): #write a single line of a tersoff input file (g
 def write_atom_line(atom,i): #write a single line of atoms (given the atom list and the index of the line. primarily written in conjunction with write_params
 	return ("%s %s %s\t" % (atom[i],atom[i+1],atom[i+2]))
 
-def get_training_set(run_name): #initialize the box and get the training set data from /training_set/ and return a System object with this information
+def get_training_set(run_name, use_pickle=True, pickle_file_name=None): #initialize the box and get the training set data from /training_set/ and return a System object with this information
+	if pickle_file_name is not None:
+		if ".pickle" not in pickle_file_name:
+			pickle_file_name += ".pickle"
+	else:
+		pickle_file_name = run_name + ".pickle"
+
+	if use_pickle and os.path.isfile(pickle_file_name):
+		print("\nReading pickle file %s" % pickle_file_name)
+		fptr = open(pickle_file_name, "rb")
+		system = pickle.load(fptr)
+		fptr.close()
+		return system
+
 	I_ = 66 
 	Cl_ = 21
 	H_ = 54
@@ -173,6 +187,13 @@ def get_training_set(run_name): #initialize the box and get the training set dat
 		f.write("%e\n" % (m.energy) )
 	f.close()
 	os.chdir("..")
+
+	if use_pickle and not os.path.isfile(pickle_file_name):
+		print("\nSaving pickle file %s" % pickle_file_name)
+		fptr = open(pickle_file_name, "wb")
+		pickle.dump(system, fptr)
+		fptr.close()
+
 	return system
 
 def run_lammps(system,lj_params,atom_list,tersoff_params,run_name): #read in the training set (system) LJ params [], tersoff params [],and run name
@@ -297,11 +318,5 @@ def calculate_error():
 
 #THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
 lj,atoms,tersoff = read_params("test") #it will look for an input file of type "input_runname.tersoff"
-system_of_atoms = get_training_set("test")
+system_of_atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
 run_lammps(system_of_atoms,lj,atoms,tersoff,"test")
-
-
-
-
-
-
