@@ -157,18 +157,18 @@ def get_training_set(run_name): #initialize the box and get the training set dat
 	os.chdir("lammps")
 	#write trainingset names to a file _data.txt
 	files.write_lammps_data(system) #make a file that has all the names of the systems we are using here
-	f = open(system.name+'_data.txt', 'w')
+	f = open(system.name+'_training_data.txt', 'w')
 	for composition in systems_by_composition:
 		for s in systems_by_composition[composition]:
 			f.write(s.name+'\n')
 	f.close()
 	# write forces to a file
-	f = open(system.name+'_forces.txt', 'w') #DFT forces
+	f = open(system.name+'_training_forces.txt', 'w') #DFT forces
 	for a in system.atoms:
 		f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
 	f.close()
 	# write energies to a file 
-	f = open(system.name+'_energies.txt', 'w') #DFT energies these are what we are comparing against and calculating energy error from
+	f = open(system.name+'_training_energies.txt', 'w') #DFT energies these are what we are comparing against and calculating energy error from
 	for m in system.molecules:
 		f.write("%e\n" % (m.energy) )
 	f.close()
@@ -208,6 +208,7 @@ read_data	'''+system.name+'''.data
 	#
 	#fixed bounaries
 	#read the data file that we just wrote
+	shutil.copy('%s/input_%s.tersoff'% (os.getcwd(),run_name), '%s/lammps/%s_input.tersoff'%(os.getcwd(),system.name)) #copy current input file to lammps dir
 
 	tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl]]  #indices of OPLS parameters (used to have a HN in this list)
 	charges    = lj_params[0]
@@ -288,11 +289,16 @@ undump 1
 	os.system('/fs/home/afh72/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
 	return
 
+def calculate_error():
+	
+  	return
+
+
+
 #THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
 lj,atoms,tersoff = read_params("test") #it will look for an input file of type "input_runname.tersoff"
 system_of_atoms = get_training_set("test")
 run_lammps(system_of_atoms,lj,atoms,tersoff,"test")
-write_params(lj,atoms,tersoff,"test")
 
 
 
