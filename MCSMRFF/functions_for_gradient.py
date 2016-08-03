@@ -350,23 +350,26 @@ undump 1
 		lmp.command(line)
 
 	lmp.file.close()
-	os.system('/fs/home/afh72/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log' % (run_name,run_name))
+	os.system('/fs/home/afh72/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log >> out.log' % (run_name,run_name))
 	os.chdir("../../")
 
 def calculate_error(run_name, natoms):
+	grad_run_name = run_name + "_grad_calc"
 	# Parse output
-	energy = lammps_job.read("%s_grad_calc" % run_name, trj_file=None).data[0][-2]
+	energy = lammps_job.read("%s" % grad_run_name, trj_file=None)[0].data[0][-2]
 
 	## Read in forces
-	forces = np.empty(natoms*3)
-	force_file = open("lammps/%s/%s.dump" % (run_name, run_name)).read().split("\n")
+	force_file = open("lammps/%s/%s.dump" % (grad_run_name, grad_run_name)).read().split("\n")
 	i = 0
-	while i < len(force_file) and "ITEM" not in force_file[i] and "ATOMS" not in force_file[i]:
+	while i < len(force_file) and "ITEM: ATOMS" not in force_file[i]:
 		i += 1
-	ids = {name:index for index,name in enumerate(force_file[i][2:])}
+
+	ids = {name:index for index,name in enumerate(force_file[i].split()[2:])}
 	# Now i points to the first line of data from the dump file. Start reading in
 	i += 1
 	j = 0
+
+	forces = np.empty(natoms*3)
 	while i < len(force_file):
 		line = force_file[i].strip()
 		if line == "":
@@ -378,14 +381,15 @@ def calculate_error(run_name, natoms):
 			forces[j+1] = values[ids["fy"]]
 			forces[j+2] = values[ids["fz"]]
 			j += 3
-	rms_force = sqrt((forces**2).sum() / len(forces))
+			i += 1
+	rms_force = np.sqrt((forces**2).sum() / len(forces))
 
 	# Now we know the energy and rms_force, just need to get difference from dft results and return
 	f_training_forces = open("lammps/%s/%s_training_forces.txt" % (run_name, run_name) ).read().split("\n")
 	f_training_energies = open("lammps/%s/%s_training_energies.txt" % (run_name, run_name) ).read().split("\n")
-	training_energy = sum([float(x) for x in f_training_energies])
-	training_rms_force = np.array([float(x) for x in f_training_forces])
-	training_rms_force = sqrt((training_rms_force**2).sum() / len(training_rms_force))
+	training_energy = sum([float(x) for x in f_training_energies if x.strip() != ""])
+	training_rms_force = np.array([float(x) for x in f_training_forces if x.strip() != ""])
+	training_rms_force = np.sqrt((training_rms_force**2).sum() / len(training_rms_force))
 
 	error = (training_rms_force - rms_force) / training_rms_force
 
@@ -407,7 +411,7 @@ def get_gradient(parameters, atoms, run_name, perturbation=1.01):
 
 		run_lammps(atoms, parameters[0], parameters[1], perturbed_parameters, "%s_grad_calc" % run_name)
 		
-		gradient[i] = calculate_error(run_name, len(p_atoms))
+		gradient[i] = calculate_error(run_name, len(atoms.atoms))
 
 	return gradient
 
@@ -416,5 +420,9 @@ parameters = read_params("test") #it will look for an input file of type "input_
 atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
 
 grad = get_gradient(parameters, atoms, "test")
+
+f = open("Gradient","w")
+f.write(str(grad))
+f.close()
 
 #run_lammps(atoms,parameters[0],parameters[1],parameters[2],"test")
