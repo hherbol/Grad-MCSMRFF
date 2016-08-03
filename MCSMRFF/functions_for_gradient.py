@@ -419,9 +419,23 @@ def get_gradient(parameters, atoms, run_name, perturbation=1.01):
 parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
 atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
 
-grad = get_gradient(parameters, atoms, "test")
+grad = get_gradient(parameters, atoms, "test", perturbation=1.01)
+f = open("Gradient1","w")
+f.write(str(grad))
+f.close()
 
-f = open("Gradient","w")
+grad = get_gradient(parameters, atoms, "test", perturbation=1.05)
+f = open("Gradient2","w")
+f.write(str(grad))
+f.close()
+
+grad = get_gradient(parameters, atoms, "test", perturbation=1.1)
+f = open("Gradient3","w")
+f.write(str(grad))
+f.close()
+
+grad = get_gradient(parameters, atoms, "test", perturbation=1.2)
+f = open("Gradient4","w")
 f.write(str(grad))
 f.close()
 
