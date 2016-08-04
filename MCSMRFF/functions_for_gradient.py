@@ -428,9 +428,13 @@ def get_gradient(parameters, system, systems_by_composition, run_name, perturbat
 			gradient[i] = 0
 			continue
 		# Stop n from being non-integer
-		if i%14 == 6:
-			gradient[i] = 0
-			continue
+		#if i%14 == 6:
+		#	gradient[i] = 0
+		#	continue
+		# Stop gamma from being non-integer:
+		#if i%14 == 1:
+		#	gradient[i] = 0
+		#	continue
 		perturbed_parameters = p_tersoff.copy()
 		#print("%d: Perturbed %lg to " % (i,p)),
 		perturbed_parameters[i] = p * perturbation
@@ -490,7 +494,7 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_o")
 
 
-steepest_descent("test", alpha=1.0, maxiter=20, perturbation=1.01)
+steepest_descent("test", alpha=0.1, maxiter=100, perturbation=1.01)
 
 #THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
 #parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
