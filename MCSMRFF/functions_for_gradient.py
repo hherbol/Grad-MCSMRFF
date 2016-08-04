@@ -410,6 +410,7 @@ def get_gradient(parameters, system, run_name, perturbation=1.01):
 	atoms = copy.deepcopy(system)
 	atoms.name = atoms.name + "_grad_calc"
 	
+	error_0 = calculate_error(run_name, len(atoms.atoms))
 	gradient = np.empty(len(p_tersoff))
 	for i,p in enumerate(p_tersoff):
 		if i%14 == 0:
@@ -420,7 +421,7 @@ def get_gradient(parameters, system, run_name, perturbation=1.01):
 
 		run_lammps(atoms, parameters[0], parameters[1], perturbed_parameters, "%s_grad_calc" % run_name)
 		
-		gradient[i] = calculate_error(run_name, len(atoms.atoms))
+		gradient[i] = calculate_error(run_name, len(atoms.atoms)) - error_0
 
 	return gradient
 
