@@ -525,9 +525,11 @@ if __name__ == "__main__":
 	from run_mcsmrff import run as run_mcsmrff
 	# Generate a large unit_cell for a test system
 	test_system = get_test_system()
+	#test_system.name = "test_start"
 
 	# Run MCSMRFF with initial parameters
-	run_mcsmrff("test_start", test_system, new_parameters, RUN="100000")
+	old_parameters = read_params("test")
+	run_mcsmrff("test_start", test_system, old_parameters, RUN="100000")
 
 	# Optimize the parameters
 	new_parameters = steepest_descent("test", alpha=0.05, maxiter=100, perturbation=1.01)
