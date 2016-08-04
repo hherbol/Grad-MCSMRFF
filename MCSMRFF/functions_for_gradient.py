@@ -9,6 +9,15 @@ from re import findall
 #This file contains a few functions for use when making the gradient optimization methods for MCSMRFF
 #It is now fully set up to run one LAMMPS simulation
 
+# This holds indices to OPLS parameters for corresponding
+# Underscored variables depict the bonding indice while no underscore indicates the atom type index
+I_, I = 66, 838
+Cl_, Cl = 21, 344
+Pb_, Pb = 111, 907
+H_ = 54
+N_ = 53
+HN = 233
+
 def read_params(run_name): #read in a file and output a list of all the TERSOFF parameters for a file of the format shown below in the order shown below
 	filename = "input_%s.tersoff"%run_name 
 	#####################################################################################################
@@ -492,32 +501,36 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 		energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
 
 	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_o")
+	return parameters
 
+def get_test_system():
+	test_system = utils.System(box_size=[30, 30, 30], name="test_run")
+	extra = {
+			Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
+		}
 
-steepest_descent("test", alpha=0.1, maxiter=100, perturbation=1.01)
+	PbMACl3 = utils.Molecule('systems/unit_cell', extra_parameters=extra, test_charges=False)
+	L, N = 6.0, 2
+	for xi in range(N):
+		for yi in range(N):
+			for zi in range(N):
+				x, y, z = (xi-0.5)*L, (yi-0.5)*L, (zi-0.5)*L
+				test_system.add(PbMACl3, x, y, z)
 
-#THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
-#parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
-#atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
-#
-#grad = get_gradient(parameters, atoms, "test", perturbation=1.01)
-#f = open("Gradient1","w")
-#f.write(str(grad))
-#f.close()
-#
-#grad = get_gradient(parameters, atoms, "test", perturbation=1.05)
-#f = open("Gradient2","w")
-#f.write(str(grad))
-#f.close()
-#
-#grad = get_gradient(parameters, atoms, "test", perturbation=1.1)
-#f = open("Gradient3","w")
-#f.write(str(grad))
-#f.close()
-#
-#grad = get_gradient(parameters, atoms, "test", perturbation=1.2)
-#f = open("Gradient4","w")
-#f.write(str(grad))
-#f.close()
+	molecule = utils.Molecule("systems/unit_cell", extra_parameters=extra, test_charges=False)
+	test_system.add(molecule)
+	return test_system
 
-#run_lammps(atoms,parameters[0],parameters[1],parameters[2],"test")
+if __name__ == "__main__":
+	from run_mcsmrff import run as run_mcsmrff
+	# Generate a large unit_cell for a test system
+	test_system = get_test_system()
+
+	# Run MCSMRFF with initial parameters
+	run_mcsmrff("test_start", test_system, new_parameters, RUN="100000")
+
+	# Optimize the parameters
+	new_parameters = steepest_descent("test", alpha=0.05, maxiter=100, perturbation=1.01)
+	
+	# See how the updates did
+	run_mcsmrff("test_end", test_system, new_parameters, RUN="100000")
