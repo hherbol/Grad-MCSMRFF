@@ -1,9 +1,9 @@
 import os, sys
 import cPickle as pickle
 import numpy as np
+import copy
 
 from merlin import *
-from shutil import copy
 from re import findall
 
 #This file contains a few functions for use when making the gradient optimization methods for MCSMRFF
@@ -353,8 +353,9 @@ undump 1
 	os.system('/fs/home/afh72/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log >> out.log' % (run_name,run_name))
 	os.chdir("../../")
 
-def calculate_error(run_name, natoms):
-	grad_run_name = run_name + "_grad_calc"
+def parse_lammps_output(run_name, natoms):
+	#grad_run_name = run_name + "_grad_calc"
+	grad_run_name = run_name
 	# Parse output
 	energy = lammps_job.read("%s" % grad_run_name, trj_file=None)[0].data[0][-2]
 
@@ -383,6 +384,11 @@ def calculate_error(run_name, natoms):
 			j += 3
 			i += 1
 	rms_force = np.sqrt((forces**2).sum() / len(forces))
+	
+	return energy, rms_force
+
+def calculate_error(run_name, natoms):
+	energy, rms_force = parse_lammps_output(run_name, natoms)
 
 	# Now we know the energy and rms_force, just need to get difference from dft results and return
 	f_training_forces = open("lammps/%s/%s_training_forces.txt" % (run_name, run_name) ).read().split("\n")
@@ -397,10 +403,13 @@ def calculate_error(run_name, natoms):
 
 # A function to calculate the gradient of the MCSMRFF parameters given an initial guess and atomic positions
 # This will perturb each parameter slightly and build up a gradient
-def get_gradient(parameters, atoms, run_name, perturbation=1.01):
+def get_gradient(parameters, system, run_name, perturbation=1.01):
 	p_lj, p_atoms, p_tersoff = [np.array(p) for p in parameters]
 	n_trios = len(p_atoms.reshape((-1,3))) # Find the number of three-body terms
-
+	
+	atoms = copy.deepcopy(system)
+	atoms.name = atoms.name + "_grad_calc"
+	
 	gradient = np.empty(len(p_tersoff))
 	for i,p in enumerate(p_tersoff):
 		if i%14 == 0:
@@ -415,28 +424,70 @@ def get_gradient(parameters, atoms, run_name, perturbation=1.01):
 
 	return gradient
 
+# A function for steepest descent optimization of parameters
+def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3): #better, but tends to push error up eventually, especially towards endpoints.
+	parameters = read_params(run_name) #it will look for an input file of type "input_runname.tersoff"
+	parameters = list(parameters)
+	atoms = get_training_set(run_name, use_pickle=True, pickle_file_name=run_name)	
+
+	step = 0
+	print("Step\tEnergy\t    rms_force    error\n-----------------------------------")
+	# Get current Energy and rms_force for the given parameters
+	run_lammps(atoms, parameters[0], parameters[1], parameters[2], run_name)
+	energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
+	while (rms_gradient > gtol) and (step < maxiter):
+		# Get gradient of the system
+		gradient = get_gradient(list(parameters), atoms, run_name)
+		error = calculate_error(run_name, len(atoms.atoms))*100.0
+		if error < 0: error *= -1
+		print("%d\t%.2f\t%.2f\t%.2f" % (step, energy, rms_gradient, error))
+
+		# Calculate new parameters
+		f = np.array(parameters[2]).flatten().copy()
+
+		max_step_length = np.sqrt(((f)**2).sum(axis=0).max())
+		if max_step_length > 1.0:
+			dr = f * alpha / max_step_length
+		else:
+			dr = f * alpha
+
+		parameters[2] = f + np.array(dr).flatten()
+		for i,p in enumerate(parameters[2]):
+			if i % 14 == 0: parameters[2][i] = int(p)
+
+		step += 1
+		run_lammps(atoms, parameters[0], parameters[1], parameters[2], run_name)
+		# Get current Energy and rms_force for the given parameters
+		energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
+	
+
+	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_o")
+
+
+steepest_descent("test", alpha=1.0, maxiter=5)
+
 #THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
-parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
-atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
-
-grad = get_gradient(parameters, atoms, "test", perturbation=1.01)
-f = open("Gradient1","w")
-f.write(str(grad))
-f.close()
-
-grad = get_gradient(parameters, atoms, "test", perturbation=1.05)
-f = open("Gradient2","w")
-f.write(str(grad))
-f.close()
-
-grad = get_gradient(parameters, atoms, "test", perturbation=1.1)
-f = open("Gradient3","w")
-f.write(str(grad))
-f.close()
-
-grad = get_gradient(parameters, atoms, "test", perturbation=1.2)
-f = open("Gradient4","w")
-f.write(str(grad))
-f.close()
+#parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
+#atoms = get_training_set("test", use_pickle=True, pickle_file_name="test")
+#
+#grad = get_gradient(parameters, atoms, "test", perturbation=1.01)
+#f = open("Gradient1","w")
+#f.write(str(grad))
+#f.close()
+#
+#grad = get_gradient(parameters, atoms, "test", perturbation=1.05)
+#f = open("Gradient2","w")
+#f.write(str(grad))
+#f.close()
+#
+#grad = get_gradient(parameters, atoms, "test", perturbation=1.1)
+#f = open("Gradient3","w")
+#f.write(str(grad))
+#f.close()
+#
+#grad = get_gradient(parameters, atoms, "test", perturbation=1.2)
+#f = open("Gradient4","w")
+#f.write(str(grad))
+#f.close()
 
 #run_lammps(atoms,parameters[0],parameters[1],parameters[2],"test")
