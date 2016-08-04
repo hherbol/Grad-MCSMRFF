@@ -88,6 +88,29 @@ def write_param_line(tersoff,i): #write a single line of a tersoff input file (g
 def write_atom_line(atom,i): #write a single line of atoms (given the atom list and the index of the line. primarily written in conjunction with write_params
 	return ("%s %s %s\t" % (atom[i],atom[i+1],atom[i+2]))
 
+def write_system_and_training_data(run_name, system, systems_by_composition):
+	system.name = run_name
+
+	files.write_lammps_data(system) #make a file that has all the names of the systems we are using here
+
+	f = open(system.name+'_training_data.txt', 'w')
+	for composition in systems_by_composition:
+		for s in systems_by_composition[composition]:
+			f.write(s.name+'\n')
+	f.close()
+
+	# write forces to a file
+	f = open(system.name+'_training_forces.txt', 'w') #DFT forces
+	for a in system.atoms:
+		f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
+	f.close()
+
+	# write energies to a file 
+	f = open(system.name+'_training_energies.txt', 'w') #DFT energies these are what we are comparing against and calculating energy error from
+	for m in system.molecules:
+		f.write("%e\n" % (m.energy) )
+	f.close()
+
 def get_training_set(run_name, use_pickle=True, pickle_file_name=None): #initialize the box and get the training set data from /training_set/ and return a System object with this information
 	if not os.path.isdir("lammps"): os.mkdir("lammps") #go to the lammps folder, or make one
 	if not os.path.isdir("lammps/%s" % run_name): os.mkdir("lammps/%s" % run_name)
@@ -106,28 +129,12 @@ def get_training_set(run_name, use_pickle=True, pickle_file_name=None): #initial
 		system.name = run_name
 		fptr.close()
 
-		files.write_lammps_data(system) #make a file that has all the names of the systems we are using here
+		write_system_and_training_data(run_name, system, systems_by_composition)
 
-		f = open(system.name+'_training_data.txt', 'w')
-		for composition in systems_by_composition:
-			for s in systems_by_composition[composition]:
-				f.write(s.name+'\n')
-		f.close()
-
-		# write forces to a file
-		f = open(system.name+'_training_forces.txt', 'w') #DFT forces
-		for a in system.atoms:
-			f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
-		f.close()
-
-		# write energies to a file 
-		f = open(system.name+'_training_energies.txt', 'w') #DFT energies these are what we are comparing against and calculating energy error from
-		for m in system.molecules:
-			f.write("%e\n" % (m.energy) )
-		f.close()
 		os.chdir("../../")
 
-		return system
+		return system, systems_by_composition
+
 	os.chdir("../../")
 
 	I_ = 66 
@@ -227,9 +234,9 @@ def get_training_set(run_name, use_pickle=True, pickle_file_name=None): #initial
 		fptr.close()
 
 	os.chdir("../../")
-	return system
+	return system, systems_by_composition
 
-def run_lammps(system,lj_params,atom_list,tersoff_params,run_name): #read in the training set (system) LJ params [], tersoff params [],and run name
+def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,run_name): #read in the training set (system) LJ params [], tersoff params [],and run name
 	# Ensure cwd/lammps/run_name exists
 	directory_to_work = '%s/lammps/%s'%(os.getcwd(),run_name)
 	directory_to_work = directory_to_work.split("/")
@@ -295,6 +302,7 @@ read_data	'''+run_name+'''.data
 
 	#R and D are the distances from the center of the first atom, so this is how we get the cutoff distance between those
 	inner_cutoffs = {}
+	#print tersoff_strings[0]
 	for type_i in tersoff_types:
 		for type_j in tersoff_types:
 			for s in tersoff_strings:
@@ -328,6 +336,7 @@ read_data	'''+run_name+'''.data
 
 	#write the pair_coeff command
 	write_params(lj_params,atom_list,tersoff_params,run_name,append="_input")
+	write_system_and_training_data(run_name, system, systems_by_composition)
 	lmp.command('pair_coeff * * tersoff '+run_name+'_input.tersoff '+(' '.join([ (t.element_name if t in tersoff_types else 'NULL') for t in system.atom_types])))
 
 	for t in system.bond_types:
@@ -354,13 +363,11 @@ undump 1
 	os.chdir("../../")
 
 def parse_lammps_output(run_name, natoms):
-	#grad_run_name = run_name + "_grad_calc"
-	grad_run_name = run_name
 	# Parse output
-	energy = lammps_job.read("%s" % grad_run_name, trj_file=None)[0].data[0][-2]
+	energy = lammps_job.read("%s" % run_name, trj_file=None)[0].data[0][-2]
 
 	## Read in forces
-	force_file = open("lammps/%s/%s.dump" % (grad_run_name, grad_run_name)).read().split("\n")
+	force_file = open("lammps/%s/%s.dump" % (run_name, run_name)).read().split("\n")
 	i = 0
 	while i < len(force_file) and "ITEM: ATOMS" not in force_file[i]:
 		i += 1
@@ -399,11 +406,13 @@ def calculate_error(run_name, natoms):
 
 	error = (training_rms_force - rms_force) / training_rms_force
 
-  	return error
+	#print("Calculating error from run %s: " % run_name),
+	#print("%lg\t%lg\t%lg" % (energy, rms_force, abs(error)))
+  	return abs(error)
 
 # A function to calculate the gradient of the MCSMRFF parameters given an initial guess and atomic positions
 # This will perturb each parameter slightly and build up a gradient
-def get_gradient(parameters, system, run_name, perturbation=1.01):
+def get_gradient(parameters, system, systems_by_composition, run_name, perturbation=1.01):
 	p_lj, p_atoms, p_tersoff = [np.array(p) for p in parameters]
 	n_trios = len(p_atoms.reshape((-1,3))) # Find the number of three-body terms
 	
@@ -413,59 +422,75 @@ def get_gradient(parameters, system, run_name, perturbation=1.01):
 	error_0 = calculate_error(run_name, len(atoms.atoms))
 	gradient = np.empty(len(p_tersoff))
 	for i,p in enumerate(p_tersoff):
+
+		# Stop m from being non-integer
 		if i%14 == 0:
 			gradient[i] = 0
 			continue
+		# Stop n from being non-integer
+		if i%14 == 6:
+			gradient[i] = 0
+			continue
 		perturbed_parameters = p_tersoff.copy()
+		#print("%d: Perturbed %lg to " % (i,p)),
 		perturbed_parameters[i] = p * perturbation
+		#print("%lg" % perturbed_parameters[i])
 
-		run_lammps(atoms, parameters[0], parameters[1], perturbed_parameters, "%s_grad_calc" % run_name)
+		#print perturbed_parameters
+		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], perturbed_parameters, "%s_grad_calc" % run_name)
 		
-		gradient[i] = calculate_error(run_name, len(atoms.atoms)) - error_0
+		gradient[i] = calculate_error("%s_grad_calc" % run_name, len(atoms.atoms)) - error_0
+	#print gradient
 
 	return gradient
 
 # A function for steepest descent optimization of parameters
-def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3): #better, but tends to push error up eventually, especially towards endpoints.
+def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation=1.01): #better, but tends to push error up eventually, especially towards endpoints.
 	parameters = read_params(run_name) #it will look for an input file of type "input_runname.tersoff"
 	parameters = list(parameters)
-	atoms = get_training_set(run_name, use_pickle=True, pickle_file_name=run_name)	
+	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True, pickle_file_name=run_name)	
 
 	step = 0
-	print("Step\tEnergy\t    rms_force    error\n-----------------------------------")
+	print("Step\tEnergy\t    rms_force    error\n-------------------------------------")
 	# Get current Energy and rms_force for the given parameters
-	run_lammps(atoms, parameters[0], parameters[1], parameters[2], run_name)
+	run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 	energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
+
 	while (rms_gradient > gtol) and (step < maxiter):
-		# Get gradient of the system
-		gradient = get_gradient(list(parameters), atoms, run_name)
-		error = calculate_error(run_name, len(atoms.atoms))*100.0
-		if error < 0: error *= -1
+
+		# Get gradient and error of the system with given parameters
+		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation)
+		error = abs(calculate_error(run_name, len(atoms.atoms))*100.0)
 		print("%d\t%.2f\t%.2f\t%.2f" % (step, energy, rms_gradient, error))
 
-		# Calculate new parameters
+		# Store parameters used in new array for perterbation later
 		f = np.array(parameters[2]).flatten().copy()
 
-		max_step_length = np.sqrt(((f)**2).sum(axis=0).max())
+		# Find step to take
+		max_step_length = np.sqrt(((gradient)**2).sum(axis=0).max())
 		if max_step_length > 1.0:
-			dr = f * alpha / max_step_length
+			dr = gradient * alpha / max_step_length
 		else:
-			dr = f * alpha
+			dr = gradient * alpha
 
-		parameters[2] = f + np.array(dr).flatten()
+		#print f.flatten()
+		#print np.array(dr).flatten()
+		#print gradient.flatten()
+		parameters[2] = f - np.array(dr).flatten()
+
 		for i,p in enumerate(parameters[2]):
 			if i % 14 == 0: parameters[2][i] = int(p)
+		#print parameters[2].flatten()
 
 		step += 1
-		run_lammps(atoms, parameters[0], parameters[1], parameters[2], run_name)
+		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 		# Get current Energy and rms_force for the given parameters
 		energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
-	
 
 	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_o")
 
 
-steepest_descent("test", alpha=1.0, maxiter=5)
+steepest_descent("test", alpha=1.0, maxiter=20, perturbation=1.01)
 
 #THIS CODE WILL NOW RUN 1 LAMMPS SIMULATION
 #parameters = read_params("test") #it will look for an input file of type "input_runname.tersoff"
