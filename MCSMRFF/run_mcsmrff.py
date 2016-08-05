@@ -22,10 +22,18 @@ HN = 233
 # Currently it is highly tuned to Pb, Cl, I systems
 # Note, parameters must be a list of [LJ, atom_strs, tersoff]
 def run(run_name, system, parameters, seed=None, RUN="300000"):
+
+	print("\n\n\n")
+	for i in range(5):
+		for j in range(50): print("#"),
+		print("")
+	print("\n\n\n")
+
 	if seed is None:
 		seed = str(int(md5(run_name).hexdigest(), 16)%(2**16))
 	else:
 		seed = str(seed)
+	system.name = run_name
 
 	# Information on a lead atom for OPLS-AA
 	extra = {
@@ -120,7 +128,7 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	#group mobile id 9 10 11 12   21 22 23 24   33 34 35 36   45 46 47 48  #only for PbCl3+MA
 	group mobile id > 0
 	#fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-	fix motion mobile nvt temp 10.0 300.0 100.0
+	fix motion mobile nvt temp 10.0 300.0 50.0
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
 	timestep 1.0
 	run '''+RUN+'''
@@ -132,3 +140,9 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 
 	os.system('%s -in %s.in -log %s.log' % (LAMMPS_DIR,run_name,run_name))
 	os.chdir("../../")
+
+	print("\n\n\n")
+	for i in range(5):
+		for j in range(50): print("#"),
+		print("")
+	print("\n\n\n")
