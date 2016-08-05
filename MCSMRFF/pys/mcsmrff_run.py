@@ -1,3 +1,6 @@
+# A function to run a MCSMRFF simulation using the given (1) run_name, (2) system, and (3) parameter file
+# Currently it is highly tuned to Pb, Cl, I systems
+# Note, parameters must be a list of [LJ, atom_strs, tersoff]
 from merlin import *
 import shutil
 
@@ -5,22 +8,9 @@ from files import write_xyz, write_lammps_data
 from sysconst import lammps_mcsmrff as LAMMPS_DIR
 from hashlib import md5
 from re import findall
-from functions_for_gradient import write_params
+from mcsmrff_gradient import write_params
+from mcsmrff_constants import *
 
-# This holds indices to OPLS parameters for corresponding
-# Underscored variables depict the bonding indice while no underscore indicates the atom type index
-I_, I = 66, 838
-Cl_, Cl = 21, 344
-Pb_, Pb = 111, 907
-H_ = 54
-N_ = 53
-HN = 233
-
-
-
-# A function to run a MCSMRFF simulation using the given (1) run_name, (2) system, and (3) parameter file
-# Currently it is highly tuned to Pb, Cl, I systems
-# Note, parameters must be a list of [LJ, atom_strs, tersoff]
 def run(run_name, system, parameters, seed=None, RUN="300000"):
 
 	print("\n\n\n")
@@ -34,11 +24,6 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	else:
 		seed = str(seed)
 	system.name = run_name
-
-	# Information on a lead atom for OPLS-AA
-	extra = {
-		Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
-	}
 
 	# Change to the correct working directory
 	if not os.path.isdir("lammps"): os.mkdir("lammps")

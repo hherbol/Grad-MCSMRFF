@@ -1,16 +1,17 @@
-from functions_for_gradient import *
-from run_mcsmrff import run as run_mcsmrff
+from mcsmrff_gradient import *
+from mcsmrff_run import run as mcsmrff_run
+
+run_name = "test"
+run_leng = "300000"
 
 # Generate a large unit_cell for a test system
 test_system = get_test_system()
-#test_system.name = "test_start"
+test_system.name = run_name
 
-# Run MCSMRFF with initial parameters
-#old_parameters = read_params("test_o", exact=True)
-#old_parameters = read_params("test")
-old_parameters = read_params("reasonable.tersoff", exact=True)
-
-run_mcsmrff("test_start", test_system, old_parameters, RUN="200000")
+# Run MCSMRFF with initial parameters ONLY IF IT HASN'T BEEN ALREADY DONE!
+old_parameters = read_params("parameters/reasonable.tersoff", exact=True)
+if not os.path.isdir("lammps/reasonable"):
+	mcsmrff_run("reasonable" % run_name, test_system, old_parameters, RUN=run_leng)
 
 # Optimize the parameters
 perturbate_these = [
@@ -24,7 +25,8 @@ perturbate_these = [
 					"Cl,Cl,Cl"
 				]
 
-new_parameters = steepest_descent("test", alpha=0.2, maxiter=5000, perturbation=1.01, param_file="reasonable.tersoff", three_body=perturbate_these)
+new_parameters = steepest_descent(run_name, alpha=0.05, maxiter=100, perturbation=1.01, param_file="parameters/reasonable.tersoff", three_body=perturbate_these)
+#new_parameters = steepest_descent(run_name, alpha=0.05, maxiter=20, perturbation=1.01, param_file="parameters/reasonable.tersoff", three_body=None)
 
 # See how the updates did
-run_mcsmrff("test_end", test_system, new_parameters, RUN="200000")
+mcsmrff_run("%s_SD" % run_name, test_system, new_parameters, RUN=run_leng)
