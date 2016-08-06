@@ -118,11 +118,14 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	#fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
 	#fix motion mobile nvt temp 10.0 300.0 50.0
 	#neigh_modify one 10
-	fix motion all npt temp 10.0 10.0 50.0 iso 0.0 0.0 1000.0
-
-	#fix motion all nvt temp 10.0 10.0 50.0
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
 	timestep 0.1
+
+	fix motion1 all npt temp 10.0 10.0 50.0 iso 0.0 0.0 1000.0
+	run 100000
+	unfix motion1
+
+	fix motion all nvt temp 10.0 300.0 50.0
 	run '''+RUN+'''
 	'''
 	for line in commands.splitlines():
