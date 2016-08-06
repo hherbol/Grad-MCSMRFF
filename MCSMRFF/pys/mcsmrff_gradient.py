@@ -316,7 +316,8 @@ def get_gradient(parameters, system, systems_by_composition, run_name, perturbat
 # A function for steepest descent optimization of parameters
 def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation=1.01, param_file=None, three_body=None): #better, but tends to push error up eventually, especially towards endpoints.
 	if param_file is None:
-		parameters = read_params(run_name) #it will look for an input file of type "input_runname.tersoff"
+		# It will look for an input file of type "input_runname.tersoff" by default
+		parameters = read_params(run_name)
 	else:
 		parameters = read_params(param_file, exact=True)
 	parameters = list(parameters)
@@ -401,10 +402,11 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 
 # A function to get a 2x2 perovskite crystal for test simulations
 def get_test_system():
-	test_system = utils.System(box_size=[30, 30, 30], name="test_run")
+	L, N = 6.0, 2
+	dim = L*N+0.5
+	test_system = utils.System(box_size=[dim, dim, dim], name="test_run")
 	PbMACl3 = utils.Molecule('systems/unit_cell', extra_parameters=extra_Pb, test_charges=False)
 
-	L, N = 6.0, 2
 	count = 0
 	for xi in range(N):
 		for yi in range(N):

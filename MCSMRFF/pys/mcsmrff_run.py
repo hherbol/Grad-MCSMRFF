@@ -105,17 +105,24 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	commands = '''
 	neigh_modify every 1 check yes delay 0
 	dump	1 all xyz 100 '''+run_name+'''.xyz
-	thermo_style custom step temp epair emol vol
+	thermo_style custom step temp ke pe epair emol vol
 	thermo 1000
+
 	#minimize 0.0 1.0e-8 1000 100000
-	min_style fire
-	minimize 0.0 1.0e-8 1000 100000
+	#min_style fire
+	#minimize 0.0 1.0e-8 1000 100000
+
 	#group mobile id 9 10 11 12   21 22 23 24   33 34 35 36   45 46 47 48  #only for PbCl3+MA
 	group mobile id > 0
+
 	#fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-	fix motion mobile nvt temp 10.0 300.0 50.0
+	#fix motion mobile nvt temp 10.0 300.0 50.0
+	#neigh_modify one 10
+	fix motion all npt temp 10.0 10.0 50.0 iso 0.0 0.0 1000.0
+
+	#fix motion all nvt temp 10.0 10.0 50.0
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
-	timestep 1.0
+	timestep 0.1
 	run '''+RUN+'''
 	'''
 	for line in commands.splitlines():
