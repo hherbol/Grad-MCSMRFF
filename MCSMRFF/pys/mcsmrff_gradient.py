@@ -402,7 +402,7 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 
 # A function to get a 2x2 perovskite crystal for test simulations
 def get_test_system():
-	L, N = 6.0, 2
+	L, N = 6.0, 3
 	dim = L*N+0.5
 	test_system = utils.System(box_size=[dim, dim, dim], name="test_run")
 	PbMACl3 = utils.Molecule('systems/unit_cell', extra_parameters=extra_Pb, test_charges=False)

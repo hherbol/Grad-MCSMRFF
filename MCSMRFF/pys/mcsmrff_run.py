@@ -105,7 +105,7 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	commands = '''
 	neigh_modify every 1 check yes delay 0
 	dump	1 all xyz 100 '''+run_name+'''.xyz
-	thermo_style custom step temp ke pe epair emol vol
+	thermo_style custom step temp press ke pe epair emol vol
 	thermo 1000
 
 	#minimize 0.0 1.0e-8 1000 100000
@@ -119,7 +119,7 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	#fix motion mobile nvt temp 10.0 300.0 50.0
 	#neigh_modify one 10
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
-	timestep 0.1
+	timestep 0.01
 
 	fix motion1 all npt temp 10.0 10.0 50.0 iso 0.0 0.0 1000.0
 	run 100000
