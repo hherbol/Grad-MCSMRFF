@@ -105,6 +105,7 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	commands = '''
 	neigh_modify every 1 check yes delay 0
 	dump	1 all xyz 100 '''+run_name+'''.xyz
+	dump    2 all custom 100 '''+run_name+'''2.dump type xu yu zu
 	thermo_style custom step temp press ke pe epair emol vol
 	thermo 1000
 
