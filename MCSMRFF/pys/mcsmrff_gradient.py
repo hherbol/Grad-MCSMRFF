@@ -285,36 +285,56 @@ def indices_of_desired_three_body(element_strings, three_body):
 
 # A function to calculate the gradient of the MCSMRFF parameters given an initial guess and atomic positions
 # This will perturb each parameter slightly and build up a gradient
-def get_gradient(parameters, system, systems_by_composition, run_name, perturbation=1.01, three_body=None):
+# There are three possible specifiers on what to perturb:
+#   three_body - Which three-body interactions you want to parameterize
+#   tersoff - Which tersoff parameters you want to parameterize
+#   lj_coul - Which of the charges, LJ-sigma and LJ-epsilon to perturb
+def get_gradient(parameters, system, systems_by_composition, run_name, perturbation=1.01, three_body=None, tersoff=None, lj_coul=None):
+	if perturbation <= 1.0:
+		raise Exception("Perturbation must be greater than 1.0.")
+
 	p_lj, p_atoms, p_tersoff = [np.array(p) for p in parameters]
 	n_trios = len(p_atoms.reshape((-1,3))) # Find the number of three-body terms
 	
-	index = indices_of_desired_three_body(parameters[1], three_body)
+	indices_three_body = indices_of_desired_three_body(parameters[1], three_body)
+	if tersoff is None: tersoff = range(14)
+	if lj_coul is None: lj_coul = range(6)
 
 	atoms = copy.deepcopy(system)
 	atoms.name = atoms.name + "_grad_calc"
 	
 	error_0 = calculate_error(run_name, len(atoms.atoms))
-	gradient = np.empty(len(p_tersoff))
 
-	for i,p in enumerate(p_tersoff):
-		if int(i / 14) not in index: continue
+	nLJ, ntersoff = len(p_lj.flatten()), len(p_tersoff)
+	gradient = np.zeros(ntersoff + nLJ)
 
-		perturbed_parameters = p_tersoff.copy()
+	full_parameter_list = np.append(p_lj.flatten().copy(), p_tersoff.copy())
+	for i,p in enumerate(full_parameter_list):
+		# Only perturb systems we want to.  That is, leave gradient = 0 for systems we do not want to perturb
+		if i>=nLJ and int((i-nLJ) / 14) not in indices_three_body: continue
+		if i>=nLJ and int((i-nLJ) % 14) not in tersoff: continue
+		if i<nLJ and i not in lj_coul: continue
 
-		if i%14 == 0:
-			perturbed_parameters[i] = np.float64(3) if p == 1 else np.float64(1)
+		# Hold a 1D array with all parameters we might perturb
+		perturbed_parameters = full_parameter_list.copy()
+
+		# In the case of m, we perturb it between 1 and 3. Everything else is multiplied by perturbation
+		if i >= nLJ and (i-nLJ)%14 == 0:
+			perturbed_parameters[i] = np.int64(3) if p == 1 else np.int64(1)
 		else:
 			perturbed_parameters[i] = p * perturbation
 
-		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], perturbed_parameters, "%s_grad_calc" % run_name)
+		p1 = perturbed_parameters[:nLJ].reshape((-1,2))
+		p2 = perturbed_parameters[nLJ:]
+
+		run_lammps(atoms, systems_by_composition, p1, parameters[1], p2, "%s_grad_calc" % run_name)
 		
 		gradient[i] = np.float64(calculate_error("%s_grad_calc" % run_name, len(atoms.atoms)) - error_0)
 
 	return gradient
 
 # A function for steepest descent optimization of parameters
-def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation=1.01, param_file=None, three_body=None): #better, but tends to push error up eventually, especially towards endpoints.
+def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation=1.01, param_file=None, three_body=None, tersoff=None, lj_coul=None): #better, but tends to push error up eventually, especially towards endpoints.
 	if param_file is None:
 		# It will look for an input file of type "input_runname.tersoff" by default
 		parameters = read_params(run_name)
@@ -330,23 +350,26 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 	run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 	energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
 
+	nLJ = len(np.array(parameters[0]).flatten())
+
 	step = 0
 	while (rms_gradient > gtol) and (step < maxiter):
 		# Get gradient and error of the system with given parameters
 		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
+		chks = [g for i,g in enumerate(gradient) if (i-nLJ)%14 == 0]
 		error = abs(calculate_error(run_name, len(atoms.atoms))*100.0)
 
 		# Print output
 		print("%d\t%.2f\t%.2f\t%.2f" % (step, energy, rms_gradient, error))
 
 		# Store parameters used in new array for perterbation later
-		f = np.array(parameters[2]).flatten().copy()
-
+		f = np.append(np.array(parameters[0]).flatten().copy(), np.array(parameters[2]).copy())
+		
 		# Find step to take
 		max_step_length = np.sqrt((np.square(gradient, dtype=np.float64)).max(),dtype=np.float64)
 
 		# This is to deal with scenarios in which an overflow is encountered
-		if max_step_length == np.inf:
+		if np.isinf(max_step_length):
 			max_step_length = 1000.0
 
 		# Generate step to take
@@ -355,17 +378,14 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 		else:
 			dr = gradient * alpha
 
-		# Only change parameters of three-body interactions we specified using "three_body"
-		index = indices_of_desired_three_body(parameters[1], three_body)
-		for i,p in enumerate(parameters[2]):
-			if int(i/14) not in index:
-				dr[i] = 0
-				f[i] = parameters[2][i]
-
 		# Calculate new parameters
 		# Note, we subtract the step
-		parameters[2] = f - np.array(dr).flatten()
+		f -= np.array(dr).flatten()
+		parameters[0] = f[:nLJ].reshape((-1,2))
+		p_hold = np.array(parameters[2]).copy()
+		parameters[2] = f[nLJ:]
 
+		# Prevent beta from being negative
 		for i,p in enumerate(parameters[2]):
 			if abs(p) < 1e-9: parameters[2][i] = 0
 			if i%14 == 7 and p < 0:
@@ -373,13 +393,12 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 
 		# If we improve by changing m (dr[i] < 0 st i%14 ==0) then flip it
 		# Recall, dr is the change in error. Thus a negative one implies the new error is smaller than the old one
-		for i,p in enumerate(parameters[2]):
+		for i,p in enumerate(p_hold):
 			if i % 14 == 0:
-				p = f[i]
-				if dr[i] < 0:
-					parameters[2][i] = int(1 if p == 3 else 3)
+				if dr[i+nLJ] < 0:
+					parameters[2][i] = int(1 if np.round(p) == 3 else 3)
 				else:
-					parameters[2][i] = int(p)
+					parameters[2][i] = int(np.round(p))
 
 		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 

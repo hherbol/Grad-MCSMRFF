@@ -1,7 +1,7 @@
 from mcsmrff_gradient import *
 from mcsmrff_run import run as mcsmrff_run
 
-run_name = "test"
+run_name = "test2"
 run_leng = "300000"
 
 # Generate a large unit_cell for a test system
@@ -25,7 +25,7 @@ perturbate_these = [
 					"Cl,Cl,Cl"
 				]
 
-new_parameters = steepest_descent(run_name, alpha=0.001, maxiter=10000, perturbation=1.01, param_file="parameters/reasonable.tersoff", three_body=perturbate_these)
+new_parameters = steepest_descent(run_name, alpha=0.1, maxiter=10000, perturbation=1.01, param_file="parameters/reasonable.tersoff", three_body=perturbate_these, tersoff=None, lj_coul=None)
 #new_parameters = steepest_descent(run_name, alpha=0.05, maxiter=20, perturbation=1.01, param_file="parameters/reasonable.tersoff", three_body=None)
 
 # See how the updates did
