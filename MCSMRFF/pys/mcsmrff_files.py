@@ -146,6 +146,7 @@ def write_param_line(tersoff,i): #write a single line of a tersoff input file (g
 def write_atom_line(atom,i): #write a single line of atoms (given the atom list and the index of the line. primarily written in conjunction with write_params
 	return ("%s %s %s\t" % (atom[i],atom[i+1],atom[i+2]))
 
+# NOTE - Systems are in order of "left" to "right" on the x axis
 def write_system_and_training_data(run_name, system, systems_by_composition):
 	system.name = run_name
 
@@ -157,10 +158,10 @@ def write_system_and_training_data(run_name, system, systems_by_composition):
 			f.write(s.name+'\n')
 	f.close()
 
-	# write forces to a file
+	# write rms_forces to a file
 	f = open(system.name+'_training_forces.txt', 'w') #DFT forces
-	for a in system.atoms:
-		f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
+	for m in system.molecules:
+		f.write("%e\n" % np.sqrt(np.sum([a.fx**2+a.fy**2+a.fz**2 for a in m.atoms])/np.float64(len(m.atoms))))
 	f.close()
 
 	# write energies to a file 
@@ -170,9 +171,9 @@ def write_system_and_training_data(run_name, system, systems_by_composition):
 	f.close()
 
 # A function to parse a LAMMPS output and return the single point energy and RMS force
-def parse_lammps_output(run_name, natoms):
+def parse_lammps_output(run_name, natoms, buffer_len=100.0):
 	# Parse output
-	energy = lammps_job.read("%s" % run_name, trj_file=None)[0].data[0][-2]
+	#energy = lammps_job.read("%s" % run_name, trj_file=None)[0].data[0][-2]
 
 	## Read in forces
 	force_file = open("lammps/%s/%s.dump" % (run_name, run_name)).read().split("\n")
@@ -183,9 +184,8 @@ def parse_lammps_output(run_name, natoms):
 	ids = {name:index for index,name in enumerate(force_file[i].split()[2:])}
 	# Now i points to the first line of data from the dump file. Start reading in
 	i += 1
-	j = 0
-
-	forces = np.empty(natoms*3)
+	energies = {}
+	forces = {}
 	while i < len(force_file):
 		line = force_file[i].strip()
 		if line == "":
@@ -193,11 +193,26 @@ def parse_lammps_output(run_name, natoms):
 			continue
 		else:
 			values = line.split()
-			forces[j] = values[ids["fx"]]
-			forces[j+1] = values[ids["fy"]]
-			forces[j+2] = values[ids["fz"]]
-			j += 3
+			x = np.float64(values[ids["x"]])
+			fx = np.float64(values[ids["fx"]])
+			fy = np.float64(values[ids["fy"]])
+			fz = np.float64(values[ids["fz"]])
+			pe = np.float64(values[ids["c_atom_pe"]])
+
+			index = int(x/1000)
+			if index not in energies:
+				energies[index] = [1,pe]
+				forces[index] = [1,fx**2+fy**2+fz**2]
+			else:
+				energies[index][0] += 1
+				energies[index][1] += pe
+				forces[index][0] += 1
+				forces[index][1] += fx**2+fy**2+fz**2
 			i += 1
-	rms_force = np.sqrt((forces**2).sum() / len(forces))
-	
-	return energy, rms_force
+	energy = sorted([(i,v) for i,v in energies.items()], key = lambda x: x[0])
+	energies = np.array([e[1][1] for e in energy])
+
+	rms_force = sorted([(i,v) for i,v in forces.items()], key = lambda x: x[0])
+	rms_forces = np.array([np.sqrt(e[1][1]/e[1][0]) for e in rms_force])
+
+	return energies, rms_forces

@@ -78,20 +78,29 @@ def get_training_set(run_name, use_pickle=True, pickle_file_name=None):
 
 		# Generate (1) xyz file of various systems as different time steps and (2) system to simulate
 		xyz_atoms = []
-		for composition in systems_by_composition:
+		to_delete = []
+		for i,composition in enumerate(systems_by_composition):
 			# Sort so that the lowest energy training subset is first in the system
 			systems_by_composition[composition].sort(key=lambda s:s.energy)
 			baseline_energy = systems_by_composition[composition][0].energy
 			# Offset the energies by the lowest energy, convert units of the energy
-			for s in systems_by_composition[composition]:
+			for j,s in enumerate(systems_by_composition[composition]):
 				s.energy -= baseline_energy
 				s.energy = units.convert_energy("Ha","kcal/mol",s.energy)
 				# Don't use high-energy systems, because these will not likely be sampled in MD
-				if s.energy > 500.0: continue
+				if s.energy > 500.0:
+					to_delete.append([composition,j])
+					continue
 				# For testing purposes, output
 				print "DEBUG:", s.name, s.energy
 				xyz_atoms.append(s.atoms)
 				system.add(s, len(system.molecules)*1000.0)
+		
+		# Delete the system_names that we aren't actually using due to energy being too high
+		to_delete = sorted(to_delete, key=lambda x: x[1])[::-1]
+		for d1,d2 in to_delete:
+			print "Warning - Training Subset %s not included as energy is too high..." % systems_by_composition[d1][d2].name
+			del systems_by_composition[d1][d2]
 
 		# Make the box just a little bigger (100) so that we can fit all our systems
 		system.xhi = len(system.molecules)*1000.0+100.0
@@ -241,7 +250,7 @@ def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,
 	compute sum_pe all reduce sum c_atom_pe
 	neigh_modify once yes
 
-	dump 1 all custom 1 '''+run_name+'''.dump id type x y z fx fy fz 
+	dump 1 all custom 1 '''+run_name+'''.dump id type x y z fx fy fz c_atom_pe
 	run 0
 	undump 1
 	'''
@@ -256,17 +265,18 @@ def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,
 
 # This function calculates the error between a MCSMRFF simulation of "run_name" and the stored training_forces and training_energies
 def calculate_error(run_name, natoms):
-	energy, rms_force = parse_lammps_output(run_name, natoms)
+	energies, rms_forces = parse_lammps_output(run_name, natoms)
 
 	# Now we know the energy and rms_force, just need to get difference from dft results and return
 	f_training_forces = open("lammps/%s/%s_training_forces.txt" % (run_name, run_name) ).read().split("\n")
 	f_training_energies = open("lammps/%s/%s_training_energies.txt" % (run_name, run_name) ).read().split("\n")
-	training_energy = sum([float(x) for x in f_training_energies if x.strip() != ""])
-	training_rms_force = np.array([float(x) for x in f_training_forces if x.strip() != ""])
-	training_rms_force = np.sqrt((training_rms_force**2).sum() / len(training_rms_force))
+	training_energies = [float(x) for x in f_training_energies if x.strip() != ""]
+	training_rms_forces = np.array([float(x) for x in f_training_forces if x.strip() != ""])
 
-	error = (training_rms_force - rms_force) / training_rms_force
-  	return abs(error)
+	error1 = [abs(a-b)/a for a,b in zip(training_rms_forces, rms_forces)]
+	#error2 = [abs(a-b)/a for a,b in zip(training_energies, energies)] # Issue with offset of first energy being 0
+
+  	return sum(error1)
 
 # This allows the user to specify which three-body interactions they want to optimize parameters for
 def indices_of_desired_three_body(element_strings, three_body):
@@ -348,19 +358,19 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 	
 	# Get current Energy and rms_force for the given parameters
 	run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
-	energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
+	energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
 
 	nLJ = len(np.array(parameters[0]).flatten())
 
 	step = 0
-	while (rms_gradient > gtol) and (step < maxiter):
+	while (step < maxiter):
 		# Get gradient and error of the system with given parameters
 		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
 		chks = [g for i,g in enumerate(gradient) if (i-nLJ)%14 == 0]
 		error = abs(calculate_error(run_name, len(atoms.atoms))*100.0)
 
 		# Print output
-		print("%d\t%.2f\t%.2f\t%.2f" % (step, energy, rms_gradient, error))
+		print("%d\t%.2f\t%.2f\t%.2f" % (step, sum(energies), sum(rms_forces), error))
 
 		# Store parameters used in new array for perterbation later
 		f = np.append(np.array(parameters[0]).flatten().copy(), np.array(parameters[2]).copy())
@@ -402,8 +412,8 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 
 		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 
-		# Get current Energy and rms_force for the given parameters
-		energy, rms_gradient = parse_lammps_output(run_name, len(atoms.atoms))
+		# Get current energies and rms_force for the given parameters
+		energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
 		# Save this iteration of parameters
 		if not os.path.isdir("parameters"): os.mkdir("parameters")
 		os.chdir("parameters")
