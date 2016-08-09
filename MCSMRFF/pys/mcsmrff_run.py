@@ -122,11 +122,17 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
 	timestep 0.01
 
-	fix motion1 all npt temp 10.0 10.0 50.0 iso 0.0 0.0 1000.0
+	#fix 1 all nve/limit 0.001
+	#fix press all press/berendsen iso 0.0 0.0 100.0
+	fix press all npt temp 10.0 10.0 10.0 iso 0.0 0.0 100.0
 	run 100000
-	unfix motion1
+	#unfix 1
+	unfix press
+	#fix temp all nvt temp 10.0 10.0 100.0
+	#run 100000
+	#unfix temp
 
-	fix motion all nvt temp 10.0 300.0 50.0
+	fix motion all nvt temp 10.0 300.0 100.0
 	run '''+RUN+'''
 	'''
 	for line in commands.splitlines():

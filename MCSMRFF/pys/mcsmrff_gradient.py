@@ -6,6 +6,7 @@ import cPickle as pickle
 import numpy as np
 import copy
 
+import constants
 from merlin import *
 from re import findall
 from mcsmrff_constants import *
@@ -250,7 +251,11 @@ def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,
 	compute sum_pe all reduce sum c_atom_pe
 	neigh_modify once yes
 
+	dump 2 all xyz 1 '''+run_name+'''.xyz
 	dump 1 all custom 1 '''+run_name+'''.dump id type x y z fx fy fz c_atom_pe
+
+	fix temp all nvt temp 10.0 10.0 100.0
+
 	run 0
 	undump 1
 	'''
@@ -267,16 +272,27 @@ def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,
 def calculate_error(run_name, natoms):
 	energies, rms_forces = parse_lammps_output(run_name, natoms)
 
+	# Offset energies
+	e_offset = energies[0]
+	energies = [e-e_offset for e in energies]	
+
 	# Now we know the energy and rms_force, just need to get difference from dft results and return
 	f_training_forces = open("lammps/%s/%s_training_forces.txt" % (run_name, run_name) ).read().split("\n")
 	f_training_energies = open("lammps/%s/%s_training_energies.txt" % (run_name, run_name) ).read().split("\n")
 	training_energies = [float(x) for x in f_training_energies if x.strip() != ""]
 	training_rms_forces = np.array([float(x) for x in f_training_forces if x.strip() != ""])
 
-	error1 = [abs(a-b)/a for a,b in zip(training_rms_forces, rms_forces)]
-	#error2 = [abs(a-b)/a for a,b in zip(training_energies, energies)] # Issue with offset of first energy being 0
+	error_force = [((a-b)/a)**2 for a,b in zip(training_rms_forces, rms_forces)]
+	# Issue with offset of first energy being 0. So divide by a+kT instead
+	#kT = units.convert_energy("J","kcal/mol",10.0*constants.K_b)
+	kT = 0.6
+	error_energy = [((a-b)/(a+kT))**2 for a,b in zip(training_energies, energies)]
 
-  	return sum(error1)
+	N = len(rms_forces)
+	error_force = np.sqrt(sum(error_force)/N)
+	error_energy = np.sqrt(sum(error_energy)/N)
+
+  	return error_force, error_energy
 
 # This allows the user to specify which three-body interactions they want to optimize parameters for
 def indices_of_desired_three_body(element_strings, three_body):
@@ -313,7 +329,8 @@ def get_gradient(parameters, system, systems_by_composition, run_name, perturbat
 	atoms = copy.deepcopy(system)
 	atoms.name = atoms.name + "_grad_calc"
 	
-	error_0 = calculate_error(run_name, len(atoms.atoms))
+	error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
+	error_0 = error_force
 
 	nLJ, ntersoff = len(p_lj.flatten()), len(p_tersoff)
 	gradient = np.zeros(ntersoff + nLJ)
@@ -339,7 +356,9 @@ def get_gradient(parameters, system, systems_by_composition, run_name, perturbat
 
 		run_lammps(atoms, systems_by_composition, p1, parameters[1], p2, "%s_grad_calc" % run_name)
 		
-		gradient[i] = np.float64(calculate_error("%s_grad_calc" % run_name, len(atoms.atoms)) - error_0)
+		# Use force
+		error_1 = calculate_error("%s_grad_calc" % run_name, len(atoms.atoms))[0]
+		gradient[i] = np.float64(error_1 - error_0)
 
 	return gradient
 
@@ -354,8 +373,9 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 
 	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True)	
 
-	print("\n\nStep\tEnergy\t    rms_force    error\n-------------------------------------")
-	
+	print("\n\nStep        Avg Energy        Avg rms_force        error_force (%)        error_energy (%)\
+             \n------------------------------------------------------------------------------------------")
+
 	# Get current Energy and rms_force for the given parameters
 	run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 	energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
@@ -367,10 +387,12 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 		# Get gradient and error of the system with given parameters
 		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
 		chks = [g for i,g in enumerate(gradient) if (i-nLJ)%14 == 0]
-		error = abs(calculate_error(run_name, len(atoms.atoms))*100.0)
+		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
+		error_force *= 100.0
+		error_energy *= 100.0
 
 		# Print output
-		print("%d\t%.2f\t%.2f\t%.2f" % (step, sum(energies), sum(rms_forces), error))
+		print("%d            %.2f            %.2f            %.2f            %.2f" % (step, sum(energies)/len(energies), sum(rms_forces)/len(rms_forces), error_force, error_energy))
 
 		# Store parameters used in new array for perterbation later
 		f = np.append(np.array(parameters[0]).flatten().copy(), np.array(parameters[2]).copy())

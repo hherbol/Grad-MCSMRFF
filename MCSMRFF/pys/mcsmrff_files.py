@@ -199,7 +199,7 @@ def parse_lammps_output(run_name, natoms, buffer_len=100.0):
 			fz = np.float64(values[ids["fz"]])
 			pe = np.float64(values[ids["c_atom_pe"]])
 
-			index = int(x/1000)
+			index = int((x+100.0)/1000)
 			if index not in energies:
 				energies[index] = [1,pe]
 				forces[index] = [1,fx**2+fy**2+fz**2]
