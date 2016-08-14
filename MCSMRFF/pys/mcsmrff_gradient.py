@@ -386,7 +386,6 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 	while (step < maxiter):
 		# Get gradient and error of the system with given parameters
 		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
-		chks = [g for i,g in enumerate(gradient) if (i-nLJ)%14 == 0]
 		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
 		error_energy *= 100.0

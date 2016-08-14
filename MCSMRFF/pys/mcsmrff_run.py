@@ -11,7 +11,7 @@ from re import findall
 from mcsmrff_gradient import write_params
 from mcsmrff_constants import *
 
-def run(run_name, system, parameters, seed=None, RUN="300000"):
+def run(run_name, system, parameters, seed=None):
 
 	print("\n\n\n")
 	for i in range(5):
@@ -133,7 +133,7 @@ def run(run_name, system, parameters, seed=None, RUN="300000"):
 	#unfix temp
 
 	fix motion all nvt temp 10.0 300.0 100.0
-	run '''+RUN+'''
+	run 300000
 	'''
 	for line in commands.splitlines():
 		lmp.command(line)
