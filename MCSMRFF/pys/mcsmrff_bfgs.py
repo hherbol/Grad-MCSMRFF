@@ -12,7 +12,7 @@ from mcsmrff_gradient import *
 
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=1E-3, perturbation=1.01,
-	     param_file=None, three_body=None, tersoff=None, lj_coul=None,
+	     param_file=None, three_body=None, tersoff=None, lj_coul=None, opt = "Force",
 		 linesearch="armijo", armijio_line_search_factor=1E-4, reset_step_size=10, max_step_size=0.2, display=0, callback=None):
 
 	def rebuild_params(params, N):
@@ -48,6 +48,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 
 	print("\n\nStep        Avg Energy        Avg rms_force        error_force (%)        error_energy (%)\
 			 \n------------------------------------------------------------------------------------------")
+	sys.stdout.flush()
 
 	# Initialize inv Hess and Identity matrix
 	current_parameters = copy.deepcopy(parameters)
@@ -67,8 +68,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 	RESET_CONST = reset_step_size
 	MIN_STEP = 1E-8
 	BACKTRACK_EPS = 1E-3
-	opt = "Energy"
-
+	
 	# Get function to describe linesearch
 	if linesearch is 'armijo':
 		if display > 1: print("armijo linesearch "),
@@ -97,11 +97,15 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		# We'll focus on minimizing Average RMS Force
 		if opt == "Force":
 			old_fval = error_force
-		else:
+		elif opt == "Energy":
 			old_fval = error_energy
+		else:
+			amount_F = float(opt)
+			old_fval = amount_F*error_force + (1.0-amount_F)*error_energy
 
 		# Print output
 		print("%d            %.2f            %.2f            %.2f            %.2f" % (loop_counter, sum(energies)/len(energies), sum(rms_forces)/len(rms_forces), error_force, error_energy))
+		sys.stdout.flush()
 			
 		# Find step to take
 		step_direction = -np.dot(current_Hessian, current_gradient)
@@ -161,8 +165,11 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		# We'll focus on minimizing Average RMS Force
 		if opt == "Force":
 			fval = error_force
-		else:
+		elif opt == "Energy":
 			fval = error_energy
+		else:
+			amount_F = float(opt)
+			fval = amount_F*error_force + (1.0-amount_F)*error_energy
 
 		if check_backtrack(fval, old_fval, new_gradient, step_direction, armijio_line_search_factor, step_size):
 			# Step taken overstepped the minimum.  Lowering step size
