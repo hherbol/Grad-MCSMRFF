@@ -44,6 +44,12 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		parameters = read_params(param_file, exact=True)
 	parameters = list(parameters)
 
+	# Remove old old, and move old to old old
+	if os.path.isdir("parameters/%s" % run_name):
+		if os.path.isdir("parameters/OLD_%s" % run_name):
+			os.system("rm -rf parameters/OLD_%s" % run_name)
+		os.rename("parameters/%s" % run_name, "parameters/OLD_%s" % run_name)
+
 	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True)	
 
 	print("\n\nStep        Avg Energy        Avg rms_force        error_force (%)        error_energy (%)\
@@ -88,7 +94,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 
 		# Scale the gradient by the largest value. This is because our "gradient" is relatively arbitrary and we want full control by the specified
 		# step_size and step_size_adjustment variables
-		current_gradient /= max(current_gradient)
+		current_gradient /= max([max(current_gradient), abs(min(current_gradient))])
 		
 		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
@@ -200,14 +206,6 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 				# might have a better H inverse than the Identity would be.
 				current_Hessian = I
 				continue
-			# If we want to reset_step_size and we've never decreased before, we can take larger steps
-			# We increase step sizes by a factor of 1/step_size_adjustment
-			elif reset_step_size < 0 and step_size >= ALPHA_CONST:
-				if display > 1:
-					print("\tIncreasing step size: %lg ->" % step_size),
-				step_size /= step_size_adjustment
-				if display > 1:
-					print("%lg,\t" % step_size),
 		
 		# Recalculate change_in_parameters to maintain the secant condition
 		change_in_parameters = new_working_parameters - working_parameters
@@ -236,17 +234,23 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		current_Hessian = np.dot(A1, np.dot(current_Hessian, A2)) + (rhok * change_in_parameters[:, np.newaxis] * change_in_parameters[np.newaxis, :])
 
 		if display > 1: print("fval %lg" % (fval))
+		# Increment the loop counter
+		loop_counter += 1
 
 		# Store new parameters, as it has passed the check
 		current_parameters = new_parameters
 		current_gradient = new_gradient
 
+		if not os.path.isdir("parameters"): os.mkdir("parameters")
+		if not os.path.isdir("parameters/%s" % run_name): os.mkdir("parameters/%s" % run_name)
+		os.chdir("parameters/%s" % run_name)
+		write_params(parameters[0],parameters[1],parameters[2],run_name,append="_%d" % loop_counter)
+		os.chdir("../../")
+
 		# If callback is desired
 		if callback is not None:
 			callback(current_parameters)
 
-		# Increment the loop counter
-		loop_counter += 1
 
 		run_lammps(atoms, systems_by_composition, current_parameters[0], current_parameters[1], current_parameters[2], run_name)
 
