@@ -94,7 +94,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 
 		# Scale the gradient by the largest value. This is because our "gradient" is relatively arbitrary and we want full control by the specified
 		# step_size and step_size_adjustment variables
-		current_gradient /= max([max(current_gradient), abs(min(current_gradient))])
+		current_gradient /= max(abs(current_gradient))
 		
 		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
@@ -122,6 +122,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 			if abs(f) == abs(step_direction[i]) and abs(f) == 0:
 				step_direction[i] = 1
 
+		# Remove the magnitude imparted by the hessian through rescaling
 		scalar = np.sqrt(force_mags / (step_direction**2))
 		step_direction = (step_direction.T * scalar).T
 		
@@ -159,7 +160,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		new_gradient = get_gradient(list(new_parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
 		# Scale the gradient by the largest value. This is because our "gradient" is relatively arbitrary and we want full control by the specified
 		# step_size and step_size_adjustment variables
-		new_gradient /= max(new_gradient)
+		new_gradient /= max(abs(new_gradient))
 		new_energies, new_rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
 		new_E_avg = sum(new_energies)/len(new_energies)
 		new_F_avg = sum(new_rms_forces)/len(new_rms_forces)

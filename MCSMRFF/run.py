@@ -3,7 +3,8 @@ from mcsmrff_run import run as mcsmrff_run
 from mcsmrff_bfgs import *
 from time import time
 
-i = 1
+i = 2
+opt = "Force"
 
 run_name = "run_%d" % i
 parameters = "run_%d_output.tersoff" % (i-1)
@@ -29,6 +30,6 @@ perturbate_these = [
 #stop = time()
 #print("Time for bfgs = %.2f seconds" % (stop - start))
 
-new_parameters = bfgs(run_name, step_size=0.1, maxiter=1000, perturbation=1.01, param_file="parameters/%s" % parameters, three_body=perturbate_these, tersoff=None, lj_coul=None, opt="Force")
+new_parameters = bfgs(run_name, step_size=0.1, maxiter=1000, perturbation=1.01, param_file="parameters/%s" % parameters, three_body=perturbate_these, tersoff=None, lj_coul=None, opt=opt)
 #new_parameters = bfgs(run_name, step_size=0.01, maxiter=1000, perturbation=1.001, param_file="parameters/%s" % parameters, three_body=perturbate_these, tersoff=None, lj_coul=None, opt="Energy")
 #new_parameters = steepest_descent(run_name, alpha=0.01, maxiter=20, perturbation=1.01, param_file="parameters/%s" % parameters, three_body=perturbate_these, tersoff=None, lj_coul=None)
