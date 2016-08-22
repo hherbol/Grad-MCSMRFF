@@ -109,31 +109,19 @@ def run(run_name, system, parameters, seed=None):
 	thermo_style custom step temp press ke pe epair emol vol
 	thermo 1000
 
-	#minimize 0.0 1.0e-8 1000 100000
-	#min_style fire
-	#minimize 0.0 1.0e-8 1000 100000
-
-	#group mobile id 9 10 11 12   21 22 23 24   33 34 35 36   45 46 47 48  #only for PbCl3+MA
 	group mobile id > 0
 
-	#fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-	#fix motion mobile nvt temp 10.0 300.0 50.0
-	#neigh_modify one 10
 	velocity all create 10.0 '''+seed+''' rot yes dist gaussian
 	timestep 0.01
 
-	#fix 1 all nve/limit 0.001
-	#fix press all press/berendsen iso 0.0 0.0 100.0
 	fix press all npt temp 10.0 10.0 10.0 iso 0.0 0.0 100.0
-	run 100000
-	#unfix 1
-	unfix press
-	#fix temp all nvt temp 10.0 10.0 100.0
+	run 50000
 	#run 100000
-	#unfix temp
+	unfix press
 
 	fix motion all nvt temp 10.0 300.0 100.0
-	run 300000
+	run 200000
+	#run 300000
 	'''
 	for line in commands.splitlines():
 		lmp.command(line)

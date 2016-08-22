@@ -13,7 +13,8 @@ from mcsmrff_gradient import *
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=1E-3, perturbation=1.01,
 	     param_file=None, three_body=None, tersoff=None, lj_coul=None, opt = "Force",
-		 linesearch="armijo", armijio_line_search_factor=1E-4, reset_step_size=10, max_step_size=0.2, display=0, callback=None):
+		 linesearch="armijo", armijio_line_search_factor=1E-4, reset_step_size=10, max_step_size=0.2, display=0, callback=None,
+		 training_set_file_path=None):
 
 	def rebuild_params(params, N):
 		parameters[0] = params[:N].reshape((-1,2))
@@ -50,7 +51,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 			os.system("rm -rf parameters/OLD_%s" % run_name)
 		os.rename("parameters/%s" % run_name, "parameters/OLD_%s" % run_name)
 
-	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True)	
+	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True, pickle_file_name=training_set_file_path)	
 
 	print("\n\nStep        Avg Energy        Avg rms_force        error_force (%)        error_energy (%)\
 			 \n------------------------------------------------------------------------------------------")
