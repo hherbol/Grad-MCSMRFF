@@ -5,7 +5,7 @@ import copy
 
 import constants
 
-import mcsmrff_files, mcsmrff_utils
+import mcsmrff_files, mcsmrff_utils, mcsmrff_gradient
 
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=1E-3, perturbation=1.01,
@@ -61,8 +61,8 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 	current_Hessian = I.copy()
 
 	# Get gradient and store your old func_max
-	run_lammps(atoms, systems_by_composition, current_parameters[0], current_parameters[1], current_parameters[2], run_name)
-	energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
+	mcsmrff_gradient.run_lammps(atoms, systems_by_composition, current_parameters[0], current_parameters[1], current_parameters[2], run_name)
+	energies, rms_forces = mcsmrff_files.parse_lammps_output(run_name, len(atoms.atoms))
 	E_avg = sum(energies)/len(energies)
 	F_avg = sum(rms_forces)/len(rms_forces)
 
@@ -88,13 +88,13 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		# Get gradient and error of the system with given parameters
 		# Here we drop ljparams and tersoff_params into a 1D array and get the gradient
 		working_parameters = np.append(np.array(current_parameters[0]).flatten().copy(), np.array(current_parameters[2]).copy())
-		current_gradient = get_gradient(list(current_parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
+		current_gradient = mcsmrff_gradient.get_gradient(list(current_parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
 
 		# Scale the gradient by the largest value. This is because our "gradient" is relatively arbitrary and we want full control by the specified
 		# step_size and step_size_adjustment variables
 		current_gradient /= max(abs(current_gradient))
 		
-		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
+		error_force, error_energy = mcsmrff_gradient.calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
 		error_energy *= 100.0
 
@@ -154,16 +154,16 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		new_parameters = apply_restrictions(new_parameters, current_parameters[2], step_direction, nLJ)
 
 		# Get the new gradient and check if max has increased
-		run_lammps(atoms, systems_by_composition, new_parameters[0], new_parameters[1], new_parameters[2], run_name)
-		new_gradient = get_gradient(list(new_parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
+		mcsmrff_gradient.run_lammps(atoms, systems_by_composition, new_parameters[0], new_parameters[1], new_parameters[2], run_name)
+		new_gradient = mcsmrff_gradient.get_gradient(list(new_parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
 		# Scale the gradient by the largest value. This is because our "gradient" is relatively arbitrary and we want full control by the specified
 		# step_size and step_size_adjustment variables
 		new_gradient /= max(abs(new_gradient))
-		new_energies, new_rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
+		new_energies, new_rms_forces = mcsmrff_files.parse_lammps_output(run_name, len(atoms.atoms))
 		new_E_avg = sum(new_energies)/len(new_energies)
 		new_F_avg = sum(new_rms_forces)/len(new_rms_forces)
 
-		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
+		error_force, error_energy = mcsmrff_gradient.calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
 		error_energy *= 100.0
 
@@ -243,7 +243,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 		if not os.path.isdir("parameters"): os.mkdir("parameters")
 		if not os.path.isdir("parameters/%s" % run_name): os.mkdir("parameters/%s" % run_name)
 		os.chdir("parameters/%s" % run_name)
-		write_params(parameters[0],parameters[1],parameters[2],run_name,append="_%d" % loop_counter)
+		mcsmrff_files.write_params(parameters[0],parameters[1],parameters[2],run_name,append="_%d" % loop_counter)
 		os.chdir("../../")
 
 		# If callback is desired
@@ -251,19 +251,19 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 			callback(current_parameters)
 
 
-		run_lammps(atoms, systems_by_composition, current_parameters[0], current_parameters[1], current_parameters[2], run_name)
+		mcsmrff_gradient.run_lammps(atoms, systems_by_composition, current_parameters[0], current_parameters[1], current_parameters[2], run_name)
 
 		# Get current energies and rms_force for the given parameters
-		energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
+		energies, rms_forces = mcsmrff_files.parse_lammps_output(run_name, len(atoms.atoms))
 		# Save this iteration of parameters
 		if not os.path.isdir("parameters"): os.mkdir("parameters")
 		os.chdir("parameters")
-		write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
+		mcsmrff_files.write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
 		os.chdir("../")
 
 	# Save the final parameters
 	os.chdir("parameters")
-	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
+	mcsmrff_files.write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
 	os.chdir("../")
 
 	return parameters

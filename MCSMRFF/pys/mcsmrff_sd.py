@@ -1,5 +1,5 @@
 import os
-import mcsmrff_files, mcsmrff_utils
+import mcsmrff_files, mcsmrff_utils, mcsmrff_gradient
 
 # A function for steepest descent optimization of parameters
 def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation=1.01, param_file=None, three_body=None, tersoff=None, lj_coul=None): #better, but tends to push error up eventually, especially towards endpoints.
@@ -16,16 +16,16 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
              \n------------------------------------------------------------------------------------------")
 
 	# Get current Energy and rms_force for the given parameters
-	run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
-	energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
+	mcsmrff_gradient.run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
+	energies, rms_forces = mcsmrff_files.parse_lammps_output(run_name, len(atoms.atoms))
 
 	nLJ = len(np.array(parameters[0]).flatten())
 
 	step = 0
 	while (step < maxiter):
 		# Get gradient and error of the system with given parameters
-		gradient = get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
-		error_force, error_energy = calculate_error(run_name, len(atoms.atoms))
+		gradient = mcsmrff_gradient.get_gradient(list(parameters), atoms, systems_by_composition, run_name, perturbation=perturbation, three_body=three_body)
+		error_force, error_energy = mcsmrff_gradient.calculate_error(run_name, len(atoms.atoms))
 		error_force *= 100.0
 		error_energy *= 100.0
 
@@ -70,21 +70,21 @@ def steepest_descent(run_name, alpha=0.05, maxiter=1000, gtol=1E-3, perturbation
 				else:
 					parameters[2][i] = int(np.round(p))
 
-		run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
+		mcsmrff_gradient.run_lammps(atoms, systems_by_composition, parameters[0], parameters[1], parameters[2], run_name)
 
 		# Get current energies and rms_force for the given parameters
-		energies, rms_forces = parse_lammps_output(run_name, len(atoms.atoms))
+		energies, rms_forces = mcsmrff_files.parse_lammps_output(run_name, len(atoms.atoms))
 		# Save this iteration of parameters
 		if not os.path.isdir("parameters"): os.mkdir("parameters")
 		os.chdir("parameters")
-		write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
+		mcsmrff_files.write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
 		os.chdir("../")
 
 		step += 1
 
 	# Save the final parameters
 	os.chdir("parameters")
-	write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
+	mcsmrff_files.write_params(parameters[0],parameters[1],parameters[2],run_name,append="_output")
 	os.chdir("../")
 
 	return parameters

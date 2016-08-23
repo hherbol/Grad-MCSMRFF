@@ -6,6 +6,8 @@ import numpy as np
 import copy
 
 from merlin import *
+import mcsmrff_files
+from mcsmrff_constants import *
 
 # This function will run a LAMMPS single point calculation using the MCSMRFF force field
 def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,run_name):
