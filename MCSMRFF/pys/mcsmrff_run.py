@@ -4,14 +4,15 @@
 from merlin import *
 import shutil
 
-from files import write_xyz, write_lammps_data
+import files
 from sysconst import lammps_mcsmrff as LAMMPS_DIR
 from hashlib import md5
 from re import findall
-from mcsmrff_gradient import write_params
+
+import mcsmrff_files, mcsmrff_utils
 from mcsmrff_constants import *
 
-def run(run_name, system, parameters, seed=None):
+def run_mcsmrff(run_name, system, parameters, seed=None):
 
 	print("\n\n\n")
 	for i in range(5):
@@ -31,9 +32,9 @@ def run(run_name, system, parameters, seed=None):
 	os.chdir("lammps/%s" % run_name)
 
 	# Generate files
-	write_xyz(system.atoms)
-	write_lammps_data(system)
-	write_params(parameters[0], parameters[1], parameters[2], run_name, append="_input")
+	files.write_xyz(system.atoms)
+	files.write_lammps_data(system)
+	mcsmrff_files.write_params(parameters[0], parameters[1], parameters[2], run_name, append="_input")
 
 	# Begin generating string to hold LAMMPS input
 	commands = ('''units real
@@ -136,3 +137,17 @@ def run(run_name, system, parameters, seed=None):
 		for j in range(50): print("#"),
 		print("")
 	print("\n\n\n")
+
+def get_glimpse(s):
+	print("Running glimpse for s = %s\n\n" % s)
+
+	run_name = "glimpse_%s" % s
+	parameters = "%s_output.tersoff" % s
+
+	# Generate a large unit_cell for a test system
+	test_system = mcsmrff_utils.get_test_system()
+	test_system.name = run_name
+
+	# Run MCSMRFF with initial parameters ONLY IF IT HASN'T BEEN ALREADY DONE!
+	running_parameters = mcsmrff_files.read_params("parameters/%s" % parameters, exact=True)
+	run_mcsmrff("%s" % run_name, test_system, running_parameters)

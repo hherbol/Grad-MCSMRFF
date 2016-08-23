@@ -4,11 +4,8 @@ import numpy as np
 import copy
 
 import constants
-from merlin import *
-from mcsmrff_constants import *
-from mcsmrff_utils import *
-from mcsmrff_files import *
-from mcsmrff_gradient import *
+
+import mcsmrff_files, mcsmrff_utils
 
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=1E-3, perturbation=1.01,
@@ -40,9 +37,9 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 
 	# It will look for an input file of type "input_runname.tersoff" by default
 	if param_file is None:
-		parameters = read_params(run_name)
+		parameters = mcsmrff_files.read_params(run_name)
 	else:
-		parameters = read_params(param_file, exact=True)
+		parameters = mcsmrff_files.read_params(param_file, exact=True)
 	parameters = list(parameters)
 
 	# Remove old old, and move old to old old
@@ -51,7 +48,7 @@ def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=
 			os.system("rm -rf parameters/OLD_%s" % run_name)
 		os.rename("parameters/%s" % run_name, "parameters/OLD_%s" % run_name)
 
-	atoms, systems_by_composition = get_training_set(run_name, use_pickle=True, pickle_file_name=training_set_file_path)	
+	atoms, systems_by_composition = mcsmrff_utils.get_training_set(run_name, use_pickle=True, pickle_file_name=training_set_file_path)	
 
 	print("\n\nStep        Avg Energy        Avg rms_force        error_force (%)        error_energy (%)\
 			 \n------------------------------------------------------------------------------------------")

@@ -1,4 +1,5 @@
-import utils
+import constants, utils
+
 # This holds indices to OPLS parameters for corresponding
 # Underscored variables depict the bonding indice while no underscore indicates the atom type index
 I_, I = 66, 838

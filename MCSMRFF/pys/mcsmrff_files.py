@@ -26,8 +26,9 @@
 import os, sys
 import numpy as np
 
-from mcsmrff_utils import *
 from merlin import *
+
+import mcsmrff_utils
 
 # A function to parse the tersoff parameters in the MCSMRFF file
 def parse_tersoff_file(filename):
@@ -41,7 +42,7 @@ def parse_tersoff_file(filename):
 		tline = tersoff_file[i].strip().split()
 		first = tline[0]
 		# If the first 'word' is not a number, then we are starting a new line of tersoff strings
-		if not is_float(first):
+		if not mcsmrff_utils.is_float(first):
 			if line == []:
 				line = tline
 				i += 1
