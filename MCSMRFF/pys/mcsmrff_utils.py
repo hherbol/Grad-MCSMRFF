@@ -1,6 +1,7 @@
 import os, sys
 import numpy as np
 import cPickle as pickle
+import copy
 
 import utils, files
 import mcsmrff_files
@@ -70,7 +71,7 @@ def read_dump(fptr, persist=False):
 	return frames
 
 # Given frames (xyz file format read in using files.read_xyz), get metric
-def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.0, step=0.1, cutoff=3.0):
+def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.0, step=0.1, cutoff=3.0, quanta=0.001, disregard=[]):
 	# If we are checking a lammps job, grab the xyz file from lammps/run_name/run_name.xyz
 	if lammps_job==True:
 		if A.endswith(".xyz"): A.split(".xyz")[0]
@@ -89,8 +90,20 @@ def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.
 	else:
 		raise Exception("This is not coded yet.")
 
-	pdf_ref = utils.get_pdf(A[0], persist=persist, output="tmp_pdf_ref", start=start, stop=stop, step=step, cutoff=cutoff)
-	pdf_final = utils.get_pdf(A[-1], persist=persist, output="tmp_pdf_final", start=start, stop=stop, step=step, cutoff=cutoff)
+	B = copy.deepcopy([A[0],A[-1]])
+	# Remove anything in disregard
+	for i,frame in enumerate(B):
+		to_kill = []
+		for j,atom in enumerate(frame):
+			if atom.element in disregard:
+				to_kill.append(j)
+		to_kill = sorted(to_kill)[::-1]
+		for k in to_kill:
+			del B[i][k]
+
+	pdf_ref = utils.get_pdf(B[0], persist=persist, output="tmp_pdf_ref", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
+	pdf_final = utils.get_pdf(B[-1], persist=persist, output="tmp_pdf_final", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
+	files.write_xyz([B[0],B[-1]], "pdf_metric_debug")
 
 	# Split lists
 	pdf_ref = zip(*pdf_ref)
@@ -98,6 +111,9 @@ def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.
 
 	difference = [(a-b)**2 for a,b in zip(pdf_ref[1], pdf_final[1])]
 	rms = (np.asarray(difference).sum() / float(len(difference)))**0.5
+
+	if not persist:
+		os.system("rm pdf_metric_debug.xyz")
 
 	return rms, [pdf_ref, pdf_final]
 

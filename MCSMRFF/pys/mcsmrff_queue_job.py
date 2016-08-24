@@ -1,7 +1,13 @@
 import os
 from utils import pysub
 
-def job(run_name, parameters, path=""):
+def job(run_name, parameters, path="", new_pdf_props={}, disregard=[]):
+	pdf_props={"start":0.0, "stop":5.0, "step":0.01, "cutoff":10.0, "persist":"False", "quanta":0.001}
+	for prop in new_pdf_props:
+		if prop in pdf_props:
+			pdf_props[prop] = new_pdf_props[prop]
+		else:
+			raise Exception("The pdf parameter %s does not exist." % prop)
 	
 	file_string = '''from mcsmrff_sd import steepest_descent as SD
 from mcsmrff_bfgs import bfgs as BFGS
@@ -24,9 +30,8 @@ new_parameters = BFGS("$RUN_NAME$", step_size=0.1, maxiter=1000, perturbation=1.
 
 mcsmrff_run.get_glimpse("$RUN_NAME$")
 
-rms, _ = mcsmrff_utils.pdf_metric("glimpse_$RUN_NAME$", lammps_job=True, persist=False, start=0.0, stop=3.0, step=0.01, cutoff=1.5)
-
-print("\\n\\nRMS for run '$RUN_NAME$' is %.2f\\n\\n" % rms)
+rms, _ = mcsmrff_utils.pdf_metric("glimpse_$RUN_NAME$", lammps_job=True, persist=$PERSIST$, start=$START$, stop=$STOP$, step=$STEP$, cutoff=$CUTOFF$, quanta=$QUANTA$, disregard=[$DISREGARD$])
+print("\\n\\nRMS for run '$RUN_NAME$' is %.5f\\n\\n" % rms)
 '''
 
 	for i in range(4):
@@ -35,7 +40,12 @@ print("\\n\\nRMS for run '$RUN_NAME$' is %.2f\\n\\n" % rms)
 		file_string = file_string.replace("$PARAMETERS$",parameters)
 	else:
 		file_string = file_string.replace("$PARAMETERS$",parameters+".tersoff")
-
+	for prop in pdf_props:
+		file_string = file_string.replace("$%s$" % prop.upper(), str(pdf_props[prop]))
+	s = ['\"%s\"' % elem for elem in disregard]
+	s = ','.join(s)
+	file_string = file_string.replace("$DISREGARD$", s)
+	
 	fptr = open(run_name+".py",'w')
 	fptr.write(file_string)
 	fptr.close()
