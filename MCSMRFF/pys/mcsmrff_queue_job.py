@@ -1,7 +1,7 @@
 import os
 from utils import pysub
 
-def job(run_name, parameters, path="", new_pdf_props={}, disregard=[]):
+def job(run_name, parameters, path="", new_pdf_props={}, disregard=[], training_set_file_path="/fs/home/hch54/MCSMRFF/Grad-MCSMRFF/MCSMRFF/training_sets/training_set.pickle"):
 	pdf_props={"start":0.0, "stop":5.0, "step":0.01, "cutoff":10.0, "persist":"False", "quanta":0.001}
 	for prop in new_pdf_props:
 		if prop in pdf_props:
@@ -26,7 +26,7 @@ perturbate_these = [
 				"Cl,Cl,Cl"
 			]
 
-new_parameters = BFGS("$RUN_NAME$", step_size=0.1, maxiter=1000, perturbation=1.01, param_file="$PARAMETERS$", three_body=perturbate_these, tersoff=None, lj_coul=None, opt="Force", reset_step_size=5, training_set_file_path="/fs/home/hch54/MCSMRFF/Grad-MCSMRFF/MCSMRFF/training_sets/training_set.pickle")
+new_parameters = BFGS("$RUN_NAME$", step_size=0.1, maxiter=1000, perturbation=1.01, param_file="$PARAMETERS$", three_body=perturbate_these, tersoff=None, lj_coul=None, opt="Force", reset_step_size=5, training_set_file_path=\"$TRAINING_SET_FILE_PATH$\")
 
 mcsmrff_run.get_glimpse("$RUN_NAME$")
 
@@ -45,7 +45,8 @@ print("\\n\\nRMS for run '$RUN_NAME$' is %.5f\\n\\n" % rms)
 	s = ['\"%s\"' % elem for elem in disregard]
 	s = ','.join(s)
 	file_string = file_string.replace("$DISREGARD$", s)
-	
+	file_string = file_string.replace("$TRAINING_SET_FILE_PATH$", training_set_file_path)
+
 	fptr = open(run_name+".py",'w')
 	fptr.write(file_string)
 	fptr.close()
