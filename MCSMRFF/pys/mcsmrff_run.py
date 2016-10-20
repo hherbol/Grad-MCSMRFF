@@ -1,10 +1,10 @@
 # A function to run a MCSMRFF simulation using the given (1) run_name, (2) system, and (3) parameter file
 # Currently it is highly tuned to Pb, Cl, I systems
 # Note, parameters must be a list of [LJ, atom_strs, tersoff]
-from merlin import *
 import shutil
 
 import files
+import structures
 from sysconst import lammps_mcsmrff as LAMMPS_DIR
 from hashlib import md5
 from re import findall
@@ -86,7 +86,7 @@ def run_mcsmrff(run_name, system, parameters, seed=None):
 		commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 	# Generate a LAMMPS structure for an input file
-	lmp = utils.Struct()
+	lmp = structures.Struct()
 	lmp.file = open(run_name+'.in', 'w')
 	def writeline(line):
 		lmp.file.write(line+'\n')

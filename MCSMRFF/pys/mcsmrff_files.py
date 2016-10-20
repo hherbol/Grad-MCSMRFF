@@ -26,8 +26,7 @@
 import os, sys
 import numpy as np
 
-from merlin import *
-
+import files
 import mcsmrff_utils
 
 # A function to parse the tersoff parameters in the MCSMRFF file

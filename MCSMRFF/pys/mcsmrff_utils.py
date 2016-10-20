@@ -3,7 +3,10 @@ import numpy as np
 import cPickle as pickle
 import copy
 
-import utils, files
+import files
+import debyer
+import structures
+import geometry
 import mcsmrff_files
 from mcsmrff_constants import *
 
@@ -101,8 +104,8 @@ def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.
 		for k in to_kill:
 			del B[i][k]
 
-	pdf_ref = utils.get_pdf(B[0], persist=persist, output="tmp_pdf_ref", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
-	pdf_final = utils.get_pdf(B[-1], persist=persist, output="tmp_pdf_final", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
+	pdf_ref = debyer.get_pdf(B[0], persist=persist, output="tmp_pdf_ref", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
+	pdf_final = debyer.get_pdf(B[-1], persist=persist, output="tmp_pdf_final", start=start, stop=stop, step=step, cutoff=cutoff, quanta=quanta)
 	files.write_xyz([B[0],B[-1]], "pdf_metric_debug")
 
 	# Split lists
@@ -118,11 +121,12 @@ def pdf_metric(A, ref=None, persist=False, lammps_job=False, start=0.0, stop=10.
 	return rms, [pdf_ref, pdf_final]
 
 # A function to get a 2x2 perovskite crystal for test simulations
-def get_test_system():
-	L, N = 6.0, 3
+def get_test_system(length_in_ang=6.0, number_per_side=3, path_to_unit_cell='/fs/home/hch54/MCSMRFF/Grad-MCSMRFF/MCSMRFF/systems/unit_cell'):
+	L = length_in_ang
+	N = number_per_side
 	dim = L*N+0.5
-	test_system = utils.System(box_size=[dim, dim, dim], name="test_run")
-	PbMACl3 = utils.Molecule('/fs/home/hch54/MCSMRFF/Grad-MCSMRFF/MCSMRFF/systems/unit_cell', extra_parameters=extra_Pb, test_charges=False)
+	test_system = structures.System(box_size=[dim, dim, dim], name="test_run")
+	PbMACl3 = structures.Molecule(path_to_unit_cell, extra_parameters=extra_Pb, test_charges=False)
 
 	count = 0
 	for xi in range(N):
@@ -156,7 +160,7 @@ def get_training_set(run_name, use_pickle=True, pickle_file_name=None):
 
 		# Generate the pickle itself if it doesn't exist
 		# Create the size of the box to be 1000 x 100 x 100 to hold your training sets
-		system = utils.System(box_size=[1e3, 100.0, 100.0], name="training_set") 
+		system = structures.System(box_size=[1e3, 100.0, 100.0], name="training_set") 
 		systems_by_composition = {}
 
 		# For each folder in the training_sets folder lets get the cml file we want and write the energies and forces for that file
@@ -180,12 +184,12 @@ def get_training_set(run_name, use_pickle=True, pickle_file_name=None):
 				#for a in result.atoms: a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
 
 			# Get the bonding information
-			with_bonds = utils.Molecule("training_sets/%s/system.cml" % name, extra_parameters=extra_Pb, test_charges=False)
+			with_bonds = structures.Molecule("training_sets/%s/system.cml" % name, extra_parameters=extra_Pb, test_charges=False)
 
 			# Copy over the forces read in into the system that has the bonding information
 			for a,b in zip(with_bonds.atoms, result.atoms):
 				a.fx, a.fy, a.fz = b.fx, b.fy, b.fz
-				if utils.dist(a,b)>1e-4: raise Exception('Atoms are different:', (a.x,a.y,a.z), (b.x,b.y,b.z)) # sanity check on atom positions
+				if geometry.dist(a,b)>1e-4: raise Exception('Atoms are different:', (a.x,a.y,a.z), (b.x,b.y,b.z)) # sanity check on atom positions
 
 			# Rename some things
 			with_bonds.energy = result.energy

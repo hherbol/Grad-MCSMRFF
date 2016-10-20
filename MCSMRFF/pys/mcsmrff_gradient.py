@@ -5,7 +5,9 @@ import os, sys
 import numpy as np
 import copy
 
-from merlin import *
+import files
+import structures
+
 import mcsmrff_files
 from mcsmrff_constants import *
 
@@ -98,7 +100,7 @@ def run_lammps(system,systems_by_composition,lj_params,atom_list,tersoff_params,
 		commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 	# Generate a lmp object to make the LAMMPS input file
-	lmp = utils.Struct()
+	lmp = structures.Struct()
 	lmp.file = open(run_name+'.in', 'w')
 	def writeline(line):
 		lmp.file.write(line+'\n')
