@@ -7,15 +7,6 @@ import numpy as np
 import files
 import structures
 
-N_perterbations_per_seed = 5
-perterbation_dx = 0.3
-perterbation_dr = 10
-expansion_perterbation_dx = 0.1
-expansion_perterbation_dr = 0.5
-expansion_step = 0.5
-N_expansion = 10
-N_perterbations_per_expansion = 5
-
 # A function to read in the seed folder
 def read_seed(path="./seed"):
 	"""
@@ -57,7 +48,7 @@ def read_seed(path="./seed"):
 
 	return molecules_A, molecules_B
 
-def get_training_set(path="./training_sets"):
+def compile_training_set(path="./training_sets"):
 	if path.endswith("/"): path = path[:-1]
 	if not os.path.exists(path):
 		raise Exception("Unable to find training set directory")
@@ -70,54 +61,66 @@ def get_training_set(path="./training_sets"):
 		i += 1
 	files.write_xyz(frames, "full_training_set")
 
-# Ensure output directory is available
-if os.path.exists("./training_sets"):
-	raise Exception("Warning - Would overwrite training set folder already in existance.")
-os.mkdir("training_sets")
-training_set_counter = 0
+def generate_training_set(N_perterbations_per_seed = 5,
+							perterbation_dx = 0.3,
+							perterbation_dr = 10,
+							expansion_perterbation_dx = 0.1,
+							expansion_perterbation_dr = 0.5,
+							expansion_step = 0.5,
+							N_expansion = 10,
+							N_perterbations_per_expansion = 5):
+	"""
+	From a seed directory of cml files, generate a more robust training set.
+	"""
+	# Ensure output directory is available
+	if os.path.exists("./training_sets"):
+		raise Exception("Warning - Would overwrite training set folder already in existance.")
+	os.mkdir("training_sets")
+	training_set_counter = 0
 
-# Generate seed list
-seeds_A, seeds_B = read_seed()
+	# Generate seed list
+	seeds_A, seeds_B = read_seed()
 
-# Add seed list to training set list
-for mol in seeds_B:
-	files.write_cml(mol, name="training_sets/%d" % training_set_counter)
-	training_set_counter += 1
-
-# Now, for each seed, add N perterbations
-for mol in seeds_B:
-	for i in range(N_perterbations_per_seed):
-		m = copy.deepcopy(mol)
-		m.perterbate(dx=perterbation_dx, dr=perterbation_dr)
-		files.write_cml(m, name="training_sets/%d" % training_set_counter)
+	# Add seed list to training set list
+	for mol in seeds_B:
+		files.write_cml(mol, name="training_sets/%d" % training_set_counter)
 		training_set_counter += 1
 
-# Now, for each seed of multiple molecules, add varying distances
-for mols in seeds_A:
-	if len(mols) == 1: continue
-	to_run = []
+	# Now, for each seed, add N perterbations
+	for mol in seeds_B:
+		for i in range(N_perterbations_per_seed):
+			m = copy.deepcopy(mol)
+			m.perterbate(dx=perterbation_dx, dr=perterbation_dr)
+			files.write_cml(m, name="training_sets/%d" % training_set_counter)
+			training_set_counter += 1
 
-	# Get every pair combination
-	for m in range(0, len(mols)+1):
-		for subset in itertools.combinations(mols, m):
-			if len(subset) == 2:
-				to_run.append(copy.deepcopy(subset))
-	if to_run == []:
-		raise Exception("Unable to get combinations")
+	# Now, for each seed of multiple molecules, add varying distances
+	for mols in seeds_A:
+		if len(mols) == 1: continue
+		to_run = []
 
-	# Loop through combos and expand
-	for m1,m2 in to_run:
-		axis = np.array(m2.get_center_of_mass()) - np.array(m1.get_center_of_mass())
-		axis /= np.linalg.norm(axis)
-		step = axis * expansion_step
-		for i in range(N_expansion):
-			m2.translate(step)
-			for j in range(N_perterbations_per_expansion):
-				m3 = copy.deepcopy(m1)
-				m4 = copy.deepcopy(m2)
-				m3.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
-				m4.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
-				files.write_cml([m3,m4], name="training_sets/%d" % training_set_counter)
-				training_set_counter += 1
+		# Get every pair combination
+		for m in range(0, len(mols)+1):
+			for subset in itertools.combinations(mols, m):
+				if len(subset) == 2:
+					to_run.append(copy.deepcopy(subset))
+		if to_run == []:
+			raise Exception("Unable to get combinations")
 
+		# Loop through combos and expand
+		for m1,m2 in to_run:
+			axis = np.array(m2.get_center_of_mass()) - np.array(m1.get_center_of_mass())
+			axis /= np.linalg.norm(axis)
+			step = axis * expansion_step
+			for i in range(N_expansion):
+				m2.translate(step)
+				for j in range(N_perterbations_per_expansion):
+					m3 = copy.deepcopy(m1)
+					m4 = copy.deepcopy(m2)
+					m3.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
+					m4.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
+					files.write_cml([m3,m4], name="training_sets/%d" % training_set_counter)
+					training_set_counter += 1
+
+generate_training_set()
 get_training_set()
