@@ -146,5 +146,5 @@ def run_low_level():
 		orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, queue="batch", procs=2)
 
 generate_training_set()
-get_training_set()
+compile_training_set()
 run_low_level()
