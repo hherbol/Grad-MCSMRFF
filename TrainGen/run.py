@@ -105,11 +105,6 @@ for mols in seeds_A:
 	if to_run == []:
 		raise Exception("Unable to get combinations")
 
-	for m in to_run:
-		files.write_cml(m,name="testing")
-		a = m[0].atoms + m[1].atoms
-		files.write_xyz(a,"testing")
-
 	# Loop through combos and expand
 	for m1,m2 in to_run:
 		axis = np.array(m2.get_center_of_mass()) - np.array(m1.get_center_of_mass())
