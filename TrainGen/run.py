@@ -122,5 +122,29 @@ def generate_training_set(N_perterbations_per_seed = 5,
 					files.write_cml([m3,m4], name="training_sets/%d" % training_set_counter)
 					training_set_counter += 1
 
+def run_low_level():
+	if not os.path.exists("training_sets"):
+		raise Exception("No training set folder to run.")
+
+	frange = [int(a.split('.cml')[0]) for a in os.listdir("training_sets") if a.endswith(".cml")]
+	frange.sort()
+	if len(frange) == 0:
+		raise Exception("No viable files in training sets folder.")
+
+	route = "! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7 COSMO"
+	extra_section = '''%cosmo
+	SMD true
+	epsilon 36.7
+	end
+%geom
+	MaxIter 500
+	end
+'''
+
+	for i in frange:
+		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False)
+		orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, queue="batch", procs=2)
+
 generate_training_set()
 get_training_set()
+run_low_level()
