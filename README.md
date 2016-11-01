@@ -2,7 +2,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 
 # Getting started
 
-1.	Download LAMMPS (http://lammps.sandia.gov/download.html). Some versions will not work - the 7 Dec 2015 is the one we've tested the most, so use that one. 
+1.	Download [LAMMPS](http://lammps.sandia.gov/download.html) ([older versions here](http://lammps.sandia.gov/tars/)). Some versions will not work - the 7 Dec 2015 is the one we've tested the most, so use that one. 
 	
 2.	Open a terminal in the src directory in your lammps folder
 
