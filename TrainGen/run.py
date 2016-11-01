@@ -10,6 +10,8 @@ import structures
 N_perterbations_per_seed = 5
 perterbation_dx = 0.3
 perterbation_dr = 10
+expansion_perterbation_dx = 0.1
+expansion_perterbation_dr = 0.5
 expansion_step = 0.5
 N_expansion = 10
 N_perterbations_per_expansion = 5
@@ -103,6 +105,11 @@ for mols in seeds_A:
 	if to_run == []:
 		raise Exception("Unable to get combinations")
 
+	for m in to_run:
+		files.write_cml(m,name="testing")
+		a = m[0].atoms + m[1].atoms
+		files.write_xyz(a,"testing")
+
 	# Loop through combos and expand
 	for m1,m2 in to_run:
 		axis = np.array(m2.get_center_of_mass()) - np.array(m1.get_center_of_mass())
@@ -113,8 +120,8 @@ for mols in seeds_A:
 			for j in range(N_perterbations_per_expansion):
 				m3 = copy.deepcopy(m1)
 				m4 = copy.deepcopy(m2)
-				m3.perterbate(dx=perterbation_dx, dr=perterbation_dr)
-				m4.perterbate(dx=perterbation_dx, dr=perterbation_dr)
+				m3.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
+				m4.perterbate(dx=expansion_perterbation_dx, dr=expansion_perterbation_dr)
 				files.write_cml([m3,m4], name="training_sets/%d" % training_set_counter)
 				training_set_counter += 1
 
