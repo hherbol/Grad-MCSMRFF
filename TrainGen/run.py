@@ -137,9 +137,6 @@ def run_low_level():
 	SMD true
 	epsilon 36.7
 	end
-%geom
-	MaxIter 500
-	end
 '''
 
 	for i in frange:
