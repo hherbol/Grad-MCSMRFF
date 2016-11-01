@@ -143,7 +143,7 @@ def run_low_level():
 '''
 
 	for i in frange:
-		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False)
+		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
 		orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, queue="batch", procs=2)
 
 generate_training_set()
