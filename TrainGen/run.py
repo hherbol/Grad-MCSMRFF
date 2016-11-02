@@ -132,17 +132,37 @@ def run_low_level():
 	if len(frange) == 0:
 		raise Exception("No viable files in training sets folder.")
 
-	route = "! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7 COSMO"
-	extra_section = '''%cosmo
-	SMD true
-	epsilon 36.7
-	end
-'''
+	route = "! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	extra_section = ""
 
+	running_jobs = []
 	for i in frange:
 		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
-		orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, queue="batch", procs=2)
+		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, grad=True, queue="batch", procs=2) )
+	return running_jobs
 
-generate_training_set()
-compile_training_set()
-run_low_level()
+def run_high_level():
+	if not os.path.exists("training_sets"):
+		raise Exception("No training set folder to run.")
+
+	frange = [int(a.split('.cml')[0]) for a in os.listdir("training_sets") if a.endswith(".cml")]
+	frange.sort()
+	if len(frange) == 0:
+		raise Exception("No viable files in training sets folder.")
+
+	route = "! PW6B95 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	extra_section = ""
+
+	running_jobs = []
+	for i in frange:
+		running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, grad=True, queue="batch", procs=2, previous="ts_%d" % i) )
+
+	return running_jobs
+#generate_training_set()
+#compile_training_set()
+jobs = run_low_level()
+for j in jobs:
+	j.wait()
+jobs2 = run_high_level()
+for j in jobs2:
+	j.wait()
