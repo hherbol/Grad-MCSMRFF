@@ -1,12 +1,19 @@
 # Imports from system
 import os
 import copy
+import shutil
 import itertools
 import numpy as np
+import cPickle as pickle
 # Imports from Clancelot
 import orca
 import files
 import structures
+import geometry
+import units
+# Imports from MCSMRFF
+import mcsmrff_files
+from mcsmrff_constants import *
 
 # A function to read in the seed folder
 def read_seed(path="./seed"):
@@ -139,7 +146,7 @@ def run_low_level():
 	for i in frange:
 		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
 		charge = sum([a.type.charge for a in atoms])
-		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2) )
+		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, sandbox=False) )
 	return running_jobs
 
 def run_high_level():
@@ -155,18 +162,217 @@ def run_high_level():
 	extra_section = ""
 
 	running_jobs = []
+	previous_failed = []
 	for i in frange:
 		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
 		charge = sum([a.type.charge for a in atoms])
-		running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, previous="ts_%d" % i) )
+		prev_converged = orca.read("ts_%d" % i).converged
+		if prev_converged:
+			running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, previous="ts_%d" % i, sandbox=False) )
+		else:
+			previous_failed.append(i)
+	return running_jobs, previous_failed
 
-	return running_jobs
+# This function will read in all orca simulations from a folder "training_sets" in the current working directory
+# If use_pickle is True, then it will first check to see if a pickle file exists in the training_sets folder under the name "training_set.pickle"
+#     If file does not exist - Read in all data from subfolders and generate the file
+#     If file does exist - Read in the pickle file if it exists
+# If pickle_file_name is a string, then it will read in the pickle file specified by the string path
+def pickle_training_set(run_name,
+						training_sets_folder="training_sets",
+						pickle_file_name="training_set",
+						high_energy_cutoff=500.0,
+						system_x_offset=1000.0,
+						verbose=False):
+	"""
+	A function to picle together the training set in a manner that is readable
+	for MCSMRFF.  This is a single LAMMPs data file with each training set
+	offset alongst the x-axis by system_x_offset.
 
-generate_training_set()
-compile_training_set()
-jobs = run_low_level()
-for j in jobs:
-	j.wait()
-jobs2 = run_high_level()
-for j in jobs2:
-	j.wait()
+	**Parameters**
+
+		run_name: *str*
+		training_sets_folder: *str, optional*
+			Path to the folder where all the training set data is.
+		pickle_file_name: *str, optional*
+			A name for the pickle file and training set system.
+		high_energy_cutoff: *float, optional*
+			A cutoff for systems that are too large in energy, as MD is likely
+			never to sample them.
+		system_x_offset: *float, optional*
+			The x offset for the systems to be added by.
+		verbose: *bool, optional*
+			Whether to have additional stdout or not.
+
+	**Returns**
+
+		Stuff
+	"""
+	# Take care of pickle file I/O
+	if training_sets_folder.endswith("/"):
+		training_sets_folder = training_sets_folder[:-1]
+	if pickle_file_name is not None and pickle_file_name.endswith(".pickle"):
+		pickle_file_name = pickle_file_name.split(".pickle")[0]
+	pfile = training_sets_folder + "/" + pickle_file_name + ".pickle"
+	sys_name = pickle_file_name
+	if os.path.isfile(pfile):
+		raise Exception("Pickled training set already exists!")
+
+	# Generate empty system for your training set
+	system = None
+	system = structures.System(box_size=[1e3, 100.0, 100.0], name=sys_name) 
+	systems_by_composition = {}
+
+	# For each folder in the training_sets folder lets get the cml file we
+	# want and write the energies and forces for that file
+	for name in os.listdir(training_sets_folder):
+		# We'll read in any training subset that succeeded and print a warning
+		# on those that failed
+		try:
+			result = orca.read("%s/%s/%s.out" %
+								(training_sets_folder, name, name)
+							  )
+		except IOError:
+			print("Warning - Training Subset %s not included as \
+out file not found..." % name)
+			continue
+
+		# Check for convergence
+		if not result.converged:
+			print("Warning - Results for %s have not converged." % name)
+			continue
+
+		# Parse the force output and change units. In the case of no force
+		# found, do not use this set of data
+		try:
+			forces = orca.engrad_read("%s/%s/%s.orca.engrad" %
+										(training_sets_folder, name, name),
+										pos="Ang"
+									 )[0]
+			# Convert force from Ha/Bohr to kcal/mol-Ang
+			convert = lambda x: units.convert_dist("Ang","Bohr",
+										units.convert_energy("Ha","kcal",x))
+			for a,b in zip(result.atoms, forces):
+				a.fx, a.fy, a.fz = convert(b.fx), convert(b.fy), convert(b.fz)
+		except (IndexError, IOError) as e:
+			print("Warning - Training Subset %s not included as \
+results not found..." % name)
+			continue
+
+		# Get the bonding information
+		with_bonds = structures.Molecule("%s/%s/%s.cml" % 
+										(training_sets_folder, name, name),
+										extra_parameters=extra_Pb,
+										allow_errors=True,
+										test_charges=False
+									)
+
+		# Copy over the forces read in into the system that has the bonding
+		# information
+		for a,b in zip(with_bonds.atoms, result.atoms):
+			a.fx, a.fy, a.fz = b.fx, b.fy, b.fz
+			# sanity check on atom positions
+			if geometry.dist(a,b)>1e-4:
+				raise Exception('Atoms are different:', (a.x,a.y,a.z),
+													    (b.x,b.y,b.z)
+								) 
+
+		# Rename and save energy
+		with_bonds.energy = result.energy
+		with_bonds.name = name
+
+		# Now, we read in all the potential three-body interactions that our
+		# training set takes into account.  This will be in a 1D array
+		composition = ' '.join(sorted([a.element for a in result.atoms]))
+		if composition not in systems_by_composition:
+			systems_by_composition[composition] = []
+		systems_by_composition[composition].append(with_bonds)
+
+	# Generate:
+	#  (1) xyz file of various systems as different time steps
+	#  (2) system to simulate
+	xyz_atoms = []
+	to_delete = []
+	for i,composition in enumerate(systems_by_composition):
+		# Sort so that the lowest energy training subset is first
+		# in the system
+		systems_by_composition[composition].sort(key=lambda s:s.energy)
+		baseline_energy = systems_by_composition[composition][0].energy
+		# Offset the energies by the lowest energy, and convert energy units
+		for j,s in enumerate(systems_by_composition[composition]):
+			s.energy -= baseline_energy
+			s.energy = units.convert_energy("Ha","kcal/mol",s.energy)
+			# Don't use high-energy systems, because these will not likely
+			# be sampled in MD
+			if s.energy > high_energy_cutoff:
+				to_delete.append([composition,j])
+				continue
+			# For testing purposes, output
+			if verbose:
+				print "Using:", s.name, s.energy
+			xyz_atoms.append(s.atoms)
+			system.add(s, len(system.molecules)*system_x_offset)
+	
+	# Delete the system_names that we aren't actually using due to energy
+	# being too high
+	to_delete = sorted(to_delete, key=lambda x: x[1])[::-1]
+	for d1,d2 in to_delete:
+		if verbose:
+			print "Warning - Training Subset %s not included as energy \
+is too high..." % systems_by_composition[d1][d2].name
+		del systems_by_composition[d1][d2]
+
+	# Make the box just a little bigger (100) so that we can fit all our
+	# systems
+	system.xhi = len(system.molecules)*system_x_offset+100.0
+
+	# Write all of the states we are using to training_sets.xyz
+	files.write_xyz(xyz_atoms, training_sets_folder+'/' + pickle_file_name)
+	# Generate our pickle file
+	print("Saving pickle file %s..." % pfile)
+	fptr = open(pfile, "wb")
+	pickle.dump([system, systems_by_composition], fptr)
+	fptr.close()
+
+	# Now we have the data, save it to files for this simulation of
+	# "run_name" and return parameters
+	if not os.path.isdir("lammps"):
+		os.mkdir("lammps")
+	if not os.path.isdir("lammps/%s" % run_name):
+		os.mkdir("lammps/%s" % run_name)
+	os.chdir("lammps/%s" % run_name)
+	mcsmrff_files.write_system_and_training_data(run_name,
+												 system,
+												 systems_by_composition
+												)
+	os.chdir("../../")
+
+	return system, systems_by_composition
+
+#generate_training_set()
+#compile_training_set()
+#jobs = run_low_level()
+#for j in jobs:
+	#j.wait()
+#jobs2, failed_sims = run_high_level()
+#
+#print("\nThe following simulations failed to converge at low level:")
+#for i in failed_sims:
+	#print(" %d," % i),
+#for j in jobs2:
+	#j.wait()
+	## Copy over cml file
+	#i = int(j.name.split("_")[1])
+	#shutil.copyfile("training_sets/%d.cml" % i,
+					#"orca/%s/%s.cml" % (j.name, j.name)
+					#)
+#
+#if os.path.exists("ts_hybrid"):
+	#raise Exception("Folder for final training set already exists!")
+#os.mkdir("ts_hybrid")
+
+for fptr in os.listdir("orca"):
+	if fptr.endswith("_high"):
+		os.system("cp -rf orca/%s ts_hybrid/" % fptr)
+
+pickle_training_set("set1",training_sets_folder="ts_hybrid")
