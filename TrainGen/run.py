@@ -158,8 +158,9 @@ def run_high_level():
 		running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, grad=True, queue="batch", procs=2, previous="ts_%d" % i) )
 
 	return running_jobs
-#generate_training_set()
-#compile_training_set()
+
+generate_training_set()
+compile_training_set()
 jobs = run_low_level()
 for j in jobs:
 	j.wait()
