@@ -138,7 +138,8 @@ def run_low_level():
 	running_jobs = []
 	for i in frange:
 		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
-		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, grad=True, queue="batch", procs=2) )
+		charge = sum([a.type.charge for a in atoms])
+		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2) )
 	return running_jobs
 
 def run_high_level():
@@ -155,7 +156,9 @@ def run_high_level():
 
 	running_jobs = []
 	for i in frange:
-		running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, grad=True, queue="batch", procs=2, previous="ts_%d" % i) )
+		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
+		charge = sum([a.type.charge for a in atoms])
+		running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, previous="ts_%d" % i) )
 
 	return running_jobs
 
