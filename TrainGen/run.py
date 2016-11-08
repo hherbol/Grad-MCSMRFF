@@ -349,7 +349,42 @@ is too high..." % systems_by_composition[d1][d2].name
 
 	return system, systems_by_composition
 
-def create_training_set():
+def minimize_seeds():
+	seeds = []
+	seed_names = []
+	route_low = "! OPT B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	extra_section_low = ""
+	route_high = "! OPT PW6B95 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	extra_section_high = ""
+	for seed in os.listdir("seed"):
+		seeds.append(files.read_cml("seed/%s" % seed, allow_errors=True, test_charges=False)[0])
+		seed_names.append(seed)
+	jobs = []
+	for i,seed in enumerate(seeds):
+		charge = sum([a.type.charge for a in seed])
+		jobs.append( orca.job("seed_%d_low" % i, route_low, atoms=seed, extra_section=extra_section_low, charge=charge, grad=True, queue="batch", procs=2, sandbox=True) )
+	for j in jobs: j.wait()
+	for i,seed in enumerate(seeds):
+		charge = sum([a.type.charge for a in seed])
+		jobs.append( orca.job("seed_%d_high" % i, route_high, atoms=[], extra_section=extra_section_high, charge=charge, grad=True, queue="batch", procs=2, previous="seed_%d_low" % i, sandbox=True) )
+	for j in jobs: j.wait()
+	for i,seed in enumerate(seeds):
+		new_pos = orca.read("seed_%d_high" % i).atoms
+		if not raw_data.converged:
+			print("Failed to optimize %s" % seed_names[i])
+			continue
+		cml_file = files.read_cml("seed/%s" % seed_names[i], allow_errors=True, test_charges=False, return_molecules=True)
+		j=0
+		for mol in cml_file:
+			for k,a in enumerate(mol.atoms):
+				b = new_pos[j]
+				a.x, a.y, a.z = b.x, b.y, b.z
+				j += 1
+		files.write_cml("seed/%s_opt" % seed_names[i], cml_file)
+
+def create_training_set(min_seeds=True):
+	if min_seeds:
+		minimize_seeds()
 	generate_training_set()
 	compile_training_set()
 	jobs = run_low_level()
@@ -381,4 +416,5 @@ def create_training_set():
 	pickle_training_set("set1",training_sets_folder="ts_hybrid")
 
 if __name__ == "__main__":
-	create_training_set()
+	#create_training_set()
+	minimize_seeds()
