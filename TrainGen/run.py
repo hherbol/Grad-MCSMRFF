@@ -15,6 +15,9 @@ import units
 import mcsmrff_files
 from mcsmrff_constants import *
 
+QUEUE_TO_RUN_ON=None
+QUEUE_PROCS=1
+
 # A function to read in the seed folder
 def read_seed(path="./seed"):
 	"""
@@ -146,7 +149,7 @@ def run_low_level():
 	for i in frange:
 		atoms = files.read_cml("training_sets/%d.cml" % i, allow_errors=True, test_charges=False, return_molecules=False)[0]
 		charge = sum([a.type.charge for a in atoms])
-		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, sandbox=True) )
+		running_jobs.append( orca.job("ts_%d" % i, route, atoms=atoms, extra_section=extra_section, charge=charge, grad=True, queue=QUEUE_TO_RUN_ON, procs=QUEUE_PROCS, sandbox=False) )
 	return running_jobs
 
 def run_high_level():
@@ -168,7 +171,7 @@ def run_high_level():
 		charge = sum([a.type.charge for a in atoms])
 		prev_converged = orca.read("ts_%d" % i).converged
 		if prev_converged:
-			running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, charge=charge, grad=True, queue="batch", procs=2, previous="ts_%d" % i, sandbox=True) )
+			running_jobs.append( orca.job("ts_%d_high" % i, route, atoms=[], extra_section=extra_section, charge=charge, grad=True, queue=QUEUE_TO_RUN_ON, procs=QUEUE_PROCS, previous="ts_%d" % i, sandbox=False) )
 		else:
 			previous_failed.append(i)
 	return running_jobs, previous_failed
@@ -349,30 +352,31 @@ is too high..." % systems_by_composition[d1][d2].name
 
 	return system, systems_by_composition
 
-def minimize_seeds():
+def minimize_seeds(nprocs=4):
 	seeds = []
 	seed_names = []
-	route_low = "! OPT B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	route_low = "! OPT B97-D3 def2-TZVP ECP{def2-TZVP} Grid7"
 	extra_section_low = ""
-	route_high = "! OPT PW6B95 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7"
+	route_high = "! OPT PW6B95 def2-TZVP ECP{def2-TZVP} Grid7"
 	extra_section_high = ""
 	for seed in os.listdir("seed"):
 		seeds.append(files.read_cml("seed/%s" % seed, allow_errors=True, test_charges=False)[0])
-		seed_names.append(seed)
+		seed_names.append(seed.split(".cml")[0])
 	jobs = []
 	for i,seed in enumerate(seeds):
 		charge = sum([a.type.charge for a in seed])
-		jobs.append( orca.job("seed_%d_low" % i, route_low, atoms=seed, extra_section=extra_section_low, charge=charge, grad=True, queue="batch", procs=2, sandbox=True) )
+		jobs.append( orca.job("seed_%d_low" % i, route_low, atoms=seed, extra_section=extra_section_low, charge=charge, grad=False, queue=QUEUE_TO_RUN_ON, procs=nprocs, sandbox=False) )
 	for j in jobs: j.wait()
 	for i,seed in enumerate(seeds):
 		charge = sum([a.type.charge for a in seed])
-		jobs.append( orca.job("seed_%d_high" % i, route_high, atoms=[], extra_section=extra_section_high, charge=charge, grad=True, queue="batch", procs=2, previous="seed_%d_low" % i, sandbox=True) )
+		jobs.append( orca.job("seed_%d_high" % i, route_high, atoms=[], extra_section=extra_section_high, charge=charge, grad=False, queue=QUEUE_TO_RUN_ON, procs=nprocs, previous="seed_%d_low" % i, sandbox=False) )
 	for j in jobs: j.wait()
 	for i,seed in enumerate(seeds):
-		new_pos = orca.read("seed_%d_high" % i).atoms
-		if not raw_data.converged:
+		new_pos = orca.read("seed_%d_high" % i)
+		if not new_pos.converged:
 			print("Failed to optimize %s" % seed_names[i])
 			continue
+		new_pos = new_pos.atoms
 		cml_file = files.read_cml("seed/%s" % seed_names[i], allow_errors=True, test_charges=False, return_molecules=True)
 		j=0
 		for mol in cml_file:
@@ -380,13 +384,14 @@ def minimize_seeds():
 				b = new_pos[j]
 				a.x, a.y, a.z = b.x, b.y, b.z
 				j += 1
-		files.write_cml("seed/%s_opt" % seed_names[i], cml_file)
+		files.write_cml(cml_file, name="seed/%s_opt" % seed_names[i])
 
-def create_training_set(min_seeds=True):
+def create_training_set(min_seeds=False):
 	if min_seeds:
 		minimize_seeds()
 	generate_training_set()
 	compile_training_set()
+	
 	jobs = run_low_level()
 	for j in jobs:
 		j.wait()
@@ -410,11 +415,12 @@ def create_training_set(min_seeds=True):
 
 	for fptr in os.listdir("orca"):
 		if not os.path.isdir("orca/"+fptr): continue
-		if fptr.endswith("_high"):
+		if fptr.startswith("ts_") and fptr.endswith("_high"):
 			os.system("cp -rf orca/%s ts_hybrid/" % fptr)
 
 	pickle_training_set("set1",training_sets_folder="ts_hybrid")
 
 if __name__ == "__main__":
 	#create_training_set()
-	minimize_seeds()
+	#minimize_seeds(16)
+	pickle_training_set("set1",training_sets_folder="ts_hybrid")
