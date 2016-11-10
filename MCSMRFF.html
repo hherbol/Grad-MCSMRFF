@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>&lt;no title&gt; &#8212; MCSMRFF 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="MCSMRFF 0.0.1 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to MCSMRFF’s documentation!" href="index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to MCSMRFF’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p>A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs.</p>
+<p># Getting started</p>
+<ol class="arabic">
+<li><p class="first">Download [LAMMPS](<a class="reference external" href="http://lammps.sandia.gov/download.html">http://lammps.sandia.gov/download.html</a>) ([older versions here](<a class="reference external" href="http://lammps.sandia.gov/tars/">http://lammps.sandia.gov/tars/</a>)). Some versions will not work - the 7 Dec 2015 is the one we&#8217;ve tested the most, so use that one.</p>
+</li>
+<li><p class="first">Open a terminal in the src directory in your lammps folder</p>
+</li>
+<li><p class="first">In your LAMMPS src directory run <cite>make yes-manybody</cite></p>
+</li>
+<li><p class="first">If you don&#8217;t have an SSH key, generate one like this:</p>
+<blockquote>
+<div><p>ssh-keygen -t rsa -b 4096 -C &#8220;<a class="reference external" href="mailto:your_email&#37;&#52;&#48;example&#46;com">your_email<span>&#64;</span>example<span>&#46;</span>com</a>&#8221;  #Creates an ssh key, using your GitHub e-mail as a label</p>
+</div></blockquote>
+<p>When prompted to &#8220;Enter a file in which to save the key,&#8221; press Enter
+If asked to Overwrite, enter &#8216;y&#8217;
+At the prompt, type a secure passphrase
+Retype your secure passphrase</p>
+</li>
+<li><p class="first">Adding a new SSH key to your GitHub account</p>
+<blockquote>
+<div><p>gedit ~/.ssh/id_rsa.pub</p>
+</div></blockquote>
+<p>In the top right corner of any GitHub page in your browser, click on your profile photo, the click &#8216;Settings&#8217;
+In the user settings sidebar, click &#8216;SSH keys&#8217;
+Click &#8216;New SSH key&#8217;
+In the &#8220;Title&#8221; field, add a descriptive label for the new key
+Copy and Paste the contents from the &#8216;id_rsa.pub&#8217; file into the &#8220;Key&#8221; field
+Click &#8216;Add SSH key&#8217;</p>
+</li>
+<li><p class="first">Load your keys into your SSH agent</p>
+<blockquote>
+<div><p>eval &#8220;$(ssh-agent -s)&#8221;</p>
+<p>ssh-add</p>
+</div></blockquote>
+<p>Enter passphrase</p>
+</li>
+<li><p class="first">Test your SSH connection</p>
+<blockquote>
+<div><p>ssh -T <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a></p>
+</div></blockquote>
+<p>You should see the message &#8220;Hi &#8216;username&#8217;! You&#8217;ve successfully authenicated, but GitHub does not provide shell access.&#8221;</p>
+</li>
+<li><p class="first">Clone repository wherever</p>
+<blockquote>
+<div><p>git clone <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a>:hherbol/Grad-MCSMRFF.git</p>
+</div></blockquote>
+</li>
+<li><p class="first">Copy over contents of Grad-MCSMRFF/LAMMPS to your lammps src folder.  Note, this overwrites the min.h and pair_tersoff.h files.</p>
+</li>
+<li><p class="first">Make using the new Makefile.mcsmrff</p>
+<blockquote>
+<div><p>make mcsmrff -j 4</p>
+</div></blockquote>
+</li>
+<li><p class="first">You&#8217;re done! Now you can use lammps with the lmp_mcsmrff file in your lammps/src directory.</p>
+</li>
+</ol>
+<p># To parameterize a force field</p>
+<ol class="arabic simple">
+<li>Build example structures for your system in Avogadro (including any OPLS bonds)</li>
+<li>Optimize with orca (e.g. Opt B97-D3 def2-TZVP)</li>
+<li>Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)</li>
+<li>Great a training set directory that houses directories for each orca result.  Each directory must include the .out, .engrad and system.cml file for that system</li>
+<li>Run <cite>python gradient_tersoff.py RUN_NAME</cite>. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.</li>
+<li>...</li>
+</ol>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to MCSMRFF&#8217;s documentation!</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/MCSMRFF.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to MCSMRFF’s documentation!"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, Henry Herbol and James Stevenson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+    </div>
+  </body>
+</html>
