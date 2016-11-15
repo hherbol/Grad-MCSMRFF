@@ -1,9 +1,8 @@
-MCSMRFF
+More Complicated Simple Reactive Force Field (MCSMRFF)
 ======================================================================
 
-More Complicated Simple Reactive Force Field (MCSMRFF) is a custom force field for the implementation of reactive,
-directional bonds in Molecular Dynamics.  Force field encompasses Tersoff potentials, Coulombic potentials, and
-Lennard-Jones potentials.  This codebase includes three main codes:
+A custom force field for the implementation of reactive, directional bonds in Molecular Dynamics.  Force field encompasses
+Tersoff potentials, Coulombic potentials, and Lennard-Jones potentials.  This codebase includes three main codes:
 
 1. LAMMPs code adjustment for implementing MCSMRFF
 2. Training set generator
