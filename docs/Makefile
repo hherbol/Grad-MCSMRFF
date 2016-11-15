@@ -47,7 +47,7 @@ help:
 	@echo "  coverage   to run coverage check of the documentation (if enabled)"
 	@echo "  dummy      to check syntax errors of document sources"
 	@echo "  full       to make the html and pdf, then commit to github"
-	@echo "  html2       to make the html, then commit to github"
+	@echo "  html2      to make the html, then commit to github"
 
 .PHONY: clean
 clean:
@@ -237,3 +237,4 @@ full: html latexpdf
 .PHONY: html2
 html2: html
 	cd $(BUILDDIR)/html; echo $(CURDIR)/$(BUILDDIR)/html; git branch; git add .; git commit -m "rebuilt docs"; git push origin gh-pages; cd $(SOURCEDIR); echo $(CURDIR)/$(SOURCEDIR); git branch; git add README.rst; git commit -m "rebuilt docs"; git push
+
