@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>&lt;no title&gt; &#8212; MCSMRFF 0.0.1 documentation</title>
+    <title>More Complicated Simple Reactive Force Field (MCSMRFF) &#8212; MCSMRFF 0.0.1 documentation</title>
     
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -24,7 +24,8 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="MCSMRFF 0.0.1 documentation" href="index.html" />
-    <link rel="prev" title="Welcome to MCSMRFF’s documentation!" href="index.html" /> 
+    <link rel="next" title="Parameterizing for MCSMRFF" href="Parameterization.html" />
+    <link rel="prev" title="MCSMRFF - Table of Contents!" href="index.html" /> 
   </head>
   <body role="document">
     <div class="related" role="navigation" aria-label="related navigation">
@@ -34,7 +35,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="index.html" title="Welcome to MCSMRFF’s documentation!"
+          <a href="Parameterization.html" title="Parameterizing for MCSMRFF"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="MCSMRFF - Table of Contents!"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
       </ul>
@@ -45,72 +49,137 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <p>A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs.</p>
-<p># Getting started</p>
+  <div class="section" id="more-complicated-simple-reactive-force-field-mcsmrff">
+<h1>More Complicated Simple Reactive Force Field (MCSMRFF)<a class="headerlink" href="#more-complicated-simple-reactive-force-field-mcsmrff" title="Permalink to this headline">¶</a></h1>
+<p>A custom force field for the implementation of reactive, directional bonds in Molecular Dynamics.  Force field encompasses
+Tersoff potentials, Coulombic potentials, and Lennard-Jones potentials.  This codebase includes three main codes:</p>
+<ol class="arabic simple">
+<li>LAMMPs code adjustment for implementing MCSMRFF</li>
+<li>Training set generator</li>
+<li>Automatic parameterization method</li>
+</ol>
+</div>
+<div class="section" id="the-force-field">
+<h1>The Force Field<a class="headerlink" href="#the-force-field" title="Permalink to this headline">¶</a></h1>
+<p>The MCSMRFF force field works as follows:</p>
+<ol class="arabic simple">
+<li>All atoms within some cutoff are described by Lennard-Jones (LJ) and Coulomb potentials</li>
+<li>Those atoms for which it is defined, will also have the Tersoff potential applied to it.</li>
+<li>All remaining atomic interactions will be described by the Optimized Potential for Liquid Simulation (OPLS-AA) forcefield.</li>
+</ol>
+<p>Using the <cite>pair_style hybrid/overlay</cite> command, we can specify the pair styles of all atoms to be a function of both Tersoff and a custom pair style: <cite>lj/cut/coul/inout</cite>.  This is simply:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>pair_style hybrid/overlay lj/cut/coul/inout alpha R_cut_inner R_cut_outer tersoff
+</pre></div>
+</div>
+<p>Where <img class="math" src="_images/math/877d234f4cec6974ce218fc2e975a486a7972dfd.png" alt="\alpha"/> is a damping parameter (in inverse distance units), <img class="math" src="_images/math/4de5f426eb5304a75d4bbba032c3237a5838af48.png" alt="R_{cut,inner}"/> is an inner cutoff, and <img class="math" src="_images/math/865a0b05c70bbdfc95ac614c15ed63d78147dc9d.png" alt="R_{cut,outer}"/> is an outer cutoff.  The distinction between the two cutoffs is that it allows for a smooth transition between the pair style being completely &#8220;on&#8221; (<img class="math" src="_images/math/7226388b6e4f48bd2c6e74cc1acd1a9627a47cf0.png" alt="r &lt; R_{cut,inner}"/>) and &#8220;off&#8221; (<img class="math" src="_images/math/3c11b8d4fd2e2053cf071a61843c9a969238d055.png" alt="r &gt; R_{cut,outer}"/>).  When specifying pair coefficients, use the following syntax:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>pair_coeff i j lj/cut/coul/inout epsilon_ij sigma_ij R_cut_inner
+</pre></div>
+</div>
+<p>Where <img class="math" src="_images/math/b078ac6be8a7a5837ee9e02419a8b5f591c733b0.png" alt="\epsilon_{ij} = \sqrt{\epsilon_i * \epsilon_j}"/> and <img class="math" src="_images/math/bf3a8f1d3186dd166d5789c1ac07a5aecbff32ca.png" alt="\sigma_{ij} = \sqrt{\sigma_i * \sigma_j}"/>.</p>
+<p>The Tersoff Potential (<a class="reference external" href="http://journals.aps.org/prb/abstract/10.1103/PhysRevB.37.6991">1</a>, <a class="reference external" href="http://journals.aps.org/prb/pdf/10.1103/PhysRevB.39.5566">2</a>, <a class="reference external" href="http://iopscience.iop.org/article/10.1088/0953-8984/15/32/324/pdf">3</a>) is well described on the <a class="reference external" href="http://lammps.sandia.gov/doc/pair_tersoff.html">LAMMPs website</a>, but in short describes 3-body atomic interactions as follows:</p>
+<div class="math">
+<p><img src="_images/math/fe00773512aeee41b576c98c782978fb74e1b3eb.png" alt="E &amp;= \frac{1}{2} \sum_i \sum_{j\ne i} V_{ij}
+
+V_{ij} &amp;= f_C(r_{ij}) \left [a_{ij} f_R(r_{ij}) + b_{ij} f_A(r_{ij})\right ]
+
+f_C(r) &amp;= \left \{ \begin{matrix} 1 &amp;,&amp; r &lt; R-D \\ \frac{1}{2}-\frac{1}{2}sin(\frac{\pi}{2}\frac{r-R}{D}) &amp;,&amp; R-D &lt; r &lt; R+D \\ 0 &amp;,&amp; r &gt; R+D \end{matrix} \right.
+
+f_R(r) &amp;= A e^{-\lambda_1 r}
+
+f_A(r) &amp;= -B e^{-\lambda_2 r}
+
+a_{ij} &amp;= (1+\alpha^n\eta_{ij}^n)^{-\frac{1}{2n}}
+
+\eta_{ij} &amp;= \sum_{k\ne i,j} f_C(r_{ik})e^{\lambda_4^m(r_{ij}-r_{ik})^m}
+
+b_{ij} &amp;= (1+\beta^n\xi_{ij}^n)^{-\frac{1}{2n}}
+
+\xi_{ij} &amp;= \sum_{k\ne i,j}f_C(r_{ik})g(\theta_{ijk})e^{\lambda_3^m(r_{ij}-r_{ik})^m}
+
+g(\theta) &amp;= \gamma_{ijk} \left ( 1 + \frac{c^2}{d^2} - \frac{c^2}{\left[ d^2 + (cos\theta_{ijk} -  cos\theta_0)^2\right ]} \right )"/></p>
+</div><p>Note, this is not the &#8220;pure&#8221; original implementaion by Tersoff, but instead a generalization to accomodate updates to the method.  Fundamentally, the Tersoff potential works by describing potential as a function of <img class="math" src="_images/math/8a5886a9a2bc6cb8d455ac36b51b0d792ddd2e5c.png" alt="f_R(r)"/>, the repulsive term, and <img class="math" src="_images/math/fe0597ace6f101050a13d169b975dfd4b254a290.png" alt="f_A(r)"/>, the attractive term.  A smoothing function, <img class="math" src="_images/math/b3ba1a18566e2bbca064c8d972edae429d8c9e67.png" alt="f_C(r)"/>, is applied so as to maintatain a continuous transition for a cutoff distance.  <img class="math" src="_images/math/0d74cc46b7f907a1ea5d769a4c00e94be3c50865.png" alt="b_{ij}"/> is included to account for the bond-order, and is assumed to be a monotonically decreasing function of the coordination of atoms <em>i</em> and <em>j</em>.  That is, <img class="math" src="_images/math/c00b85a6d78069a6f90dc8554d53d45f5e143dbd.png" alt="b_{ij} \propto z^{-\frac{1}{2n}}"/>, where <em>z</em> describes the coordination number.  <img class="math" src="_images/math/0d74cc46b7f907a1ea5d769a4c00e94be3c50865.png" alt="b_{ij}"/> is also a function of <img class="math" src="_images/math/829befb180d93531ed6b55b01c605d4d9e48500f.png" alt="\xi_{ij}"/>, which counts the number of bonds to atom <em>i</em> (excluding <em>i-j</em>).  <img class="math" src="_images/math/998e2d36b36cb1cbf6ebfde33ab39f7d7e1c1c8e.png" alt="a_{ij}"/> is poorly described in the original implementation, but seems to describe a correction term for systems in which <img class="math" src="_images/math/c601271cdee2c47af1ff56e859c8172f0e9756da.png" alt="\eta_{ij}"/> is exponentially large.  This occurs for atoms outside of the first-neighbor shell.  That is to say that the repulsive term <img class="math" src="_images/math/8a5886a9a2bc6cb8d455ac36b51b0d792ddd2e5c.png" alt="f_R(r)"/> decreases for atoms further away.  Interestingly enough, this implementation of the Tersoff potential is not used in LAMMPs, and further not used in example implementations by Tersoff.  Thus, it is typical for <img class="math" src="_images/math/2e3bfaa6f749f03bb68e5ac803e7c384cd24369e.png" alt="a_{ij}=1"/>.  Finally, the function <img class="math" src="_images/math/6a99c6415e935a84782372eb49fe681caa75d3ba.png" alt="g(\theta)"/> describes the angular contribution to the bonding terms.</p>
+<p>To accomodate variations of this potential, <em>m</em> and <img class="math" src="_images/math/6057efcce2772021af54a4ae5d38e0870f36ea35.png" alt="\gamma_{ijk}"/> are used.  <img class="math" src="_images/math/6057efcce2772021af54a4ae5d38e0870f36ea35.png" alt="\gamma_{ijk}"/> scales the angular contribution to <img class="math" src="_images/math/0d74cc46b7f907a1ea5d769a4c00e94be3c50865.png" alt="b_{ij}"/>, and <em>m</em> changes from 3 to 1 depending on whether the <a class="reference external" href="http://iopscience.iop.org/article/10.1088/0953-8984/15/32/324/pdf">Nord et al.</a> variation is to be used.</p>
+<p>Looking through these equations, the following are all terms that we must parameterize (note, we follow the trend of setting <img class="math" src="_images/math/2e3bfaa6f749f03bb68e5ac803e7c384cd24369e.png" alt="a_{ij}=1"/>):</p>
+<blockquote>
+<div><p><em>R</em> - The cutoff distance at which 50% of the potential is in effect.</p>
+<p><em>D</em> - The buffer distance before and after <em>R</em> for the smoothing function <img class="math" src="_images/math/a70640f5c8eac7c64b55f78c4cef9cce5fb93b4a.png" alt="f_C(r_{ij})"/>.</p>
+<p><em>A</em> - The constant scalar for the repulsive function <img class="math" src="_images/math/c5db31fe88e95617aad608b6195f46066b66dce3.png" alt="f_R(r_{ij})"/>.</p>
+<p><img class="math" src="_images/math/a2c5c1af213db8e97bdaaf60c8fceab2faef8271.png" alt="\lambda_1"/> - The exponential decay of the repulsive function <img class="math" src="_images/math/c5db31fe88e95617aad608b6195f46066b66dce3.png" alt="f_R(r_{ij})"/>.</p>
+<p><em>B</em> - The constant scalar for the repulsive function <img class="math" src="_images/math/aa75e5ede1aff17b809685f305dd8a742d26c308.png" alt="f_A(r_{ij})"/>.</p>
+<p><img class="math" src="_images/math/6bf459c11ce1eb9a1bfa05d02185f322e796f5f4.png" alt="\lambda_2"/> - The exponential decay of the attractive function <img class="math" src="_images/math/aa75e5ede1aff17b809685f305dd8a742d26c308.png" alt="f_A(r_{ij})"/>.</p>
+<p><em>n</em> - An exponential to decay factor of <img class="math" src="_images/math/0d74cc46b7f907a1ea5d769a4c00e94be3c50865.png" alt="b_{ij}"/> to accomodate for the change in decay rate of low and high coordinations <img class="math" src="_images/math/829befb180d93531ed6b55b01c605d4d9e48500f.png" alt="\xi_{ij}"/>.</p>
+<p><em>beta</em> - A scalar for the impact of the coordination contribution <img class="math" src="_images/math/829befb180d93531ed6b55b01c605d4d9e48500f.png" alt="\xi_{ij}"/>.</p>
+<p><em>m</em> - An exponential to accomodate the Tersoff potential (3) or the Nord variation (1).</p>
+<p><img class="math" src="_images/math/e7a5cb52d2bc9ab8ee2a2b5d9257e49ad806ee2a.png" alt="\lambda_3"/> - The exponential factor of the bond coordination term <img class="math" src="_images/math/829befb180d93531ed6b55b01c605d4d9e48500f.png" alt="\xi_{ij}"/>.</p>
+<p><img class="math" src="_images/math/6057efcce2772021af54a4ae5d38e0870f36ea35.png" alt="\gamma_{ijk}"/> - Scaling term for the impact of the angular contribution to the bond coordination.</p>
+<p><em>c</em> - How strong the angular contribution is to the bond coordination.</p>
+<p><em>d</em> - How sharp the angular contribution is to the bond coordination.</p>
+<p><img class="math" src="_images/math/6eca6ecefb478444e4d5312f49422b5a376ffd2d.png" alt="cos\theta_0"/> - The minimum angle for which this contribution is minimized.</p>
+</div></blockquote>
+</div>
+<div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
 <ol class="arabic">
-<li><p class="first">Download [LAMMPS](<a class="reference external" href="http://lammps.sandia.gov/download.html">http://lammps.sandia.gov/download.html</a>) ([older versions here](<a class="reference external" href="http://lammps.sandia.gov/tars/">http://lammps.sandia.gov/tars/</a>)). Some versions will not work - the 7 Dec 2015 is the one we&#8217;ve tested the most, so use that one.</p>
+<li><p class="first">Download <a class="reference external" href="http://lammps.sandia.gov/download.html">LAMMPS</a> (<a class="reference external" href="http://lammps.sandia.gov/tars/">older versions here</a>). Some versions will not work - the 7 Dec 2015 is the one we&#8217;ve tested the most, so use that one.</p>
 </li>
 <li><p class="first">Open a terminal in the src directory in your lammps folder</p>
 </li>
 <li><p class="first">In your LAMMPS src directory run <cite>make yes-manybody</cite></p>
 </li>
-<li><p class="first">If you don&#8217;t have an SSH key, generate one like this:</p>
-<blockquote>
-<div><p>ssh-keygen -t rsa -b 4096 -C &#8220;<a class="reference external" href="mailto:your_email&#37;&#52;&#48;example&#46;com">your_email<span>&#64;</span>example<span>&#46;</span>com</a>&#8221;  #Creates an ssh key, using your GitHub e-mail as a label</p>
-</div></blockquote>
-<p>When prompted to &#8220;Enter a file in which to save the key,&#8221; press Enter
-If asked to Overwrite, enter &#8216;y&#8217;
-At the prompt, type a secure passphrase
-Retype your secure passphrase</p>
+<li><p class="first">If you don&#8217;t have an SSH key, generate one like this (if you do, skip to step 8):</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>ssh-keygen -t rsa -b <span class="m">4096</span> -C <span class="s2">&quot;your_email@example.com&quot;</span>  <span class="c1">#Creates an ssh key, using your GitHub e-mail as a label</span>
+</pre></div>
+</div>
+<p>When prompted to &#8220;Enter a file in which to save the key,&#8221; press Enter</p>
+<p>If asked to Overwrite, enter &#8216;y&#8217;</p>
+<p>At the prompt, type a secure passphrase</p>
+<p>Retype your secure passphrase</p>
 </li>
-<li><p class="first">Adding a new SSH key to your GitHub account</p>
-<blockquote>
-<div><p>gedit ~/.ssh/id_rsa.pub</p>
-</div></blockquote>
-<p>In the top right corner of any GitHub page in your browser, click on your profile photo, the click &#8216;Settings&#8217;
-In the user settings sidebar, click &#8216;SSH keys&#8217;
-Click &#8216;New SSH key&#8217;
-In the &#8220;Title&#8221; field, add a descriptive label for the new key
-Copy and Paste the contents from the &#8216;id_rsa.pub&#8217; file into the &#8220;Key&#8221; field
-Click &#8216;Add SSH key&#8217;</p>
+<li><p class="first">Add the new SSH key to your GitHub account</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>gedit ~/.ssh/id_rsa.pub
+</pre></div>
+</div>
+<p>In the top right corner of any GitHub page in your browser, click on your profile photo, then click &#8216;Settings&#8217;</p>
+<p>In the user settings sidebar, click &#8216;SSH keys&#8217;</p>
+<p>Click &#8216;New SSH key&#8217;</p>
+<p>In the &#8220;Title&#8221; field, add a descriptive label for the new key</p>
+<p>Copy and Paste the contents from the &#8216;id_rsa.pub&#8217; file into the &#8220;Key&#8221; field</p>
+<p>Click &#8216;Add SSH key&#8217;</p>
 </li>
 <li><p class="first">Load your keys into your SSH agent</p>
-<blockquote>
-<div><p>eval &#8220;$(ssh-agent -s)&#8221;</p>
-<p>ssh-add</p>
-</div></blockquote>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">eval</span> <span class="s2">&quot;</span><span class="k">$(</span>ssh-agent -s<span class="k">)</span><span class="s2">&quot;</span>
+ssh-add
+</pre></div>
+</div>
 <p>Enter passphrase</p>
 </li>
 <li><p class="first">Test your SSH connection</p>
-<blockquote>
-<div><p>ssh -T <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a></p>
-</div></blockquote>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>ssh -T git@github.com
+</pre></div>
+</div>
 <p>You should see the message &#8220;Hi &#8216;username&#8217;! You&#8217;ve successfully authenicated, but GitHub does not provide shell access.&#8221;</p>
 </li>
 <li><p class="first">Clone repository wherever</p>
-<blockquote>
-<div><p>git clone <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a>:hherbol/Grad-MCSMRFF.git</p>
-</div></blockquote>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>git clone git@github.com:hherbol/Grad-MCSMRFF.git
+</pre></div>
+</div>
 </li>
 <li><p class="first">Copy over contents of Grad-MCSMRFF/LAMMPS to your lammps src folder.  Note, this overwrites the min.h and pair_tersoff.h files.</p>
 </li>
 <li><p class="first">Make using the new Makefile.mcsmrff</p>
-<blockquote>
-<div><p>make mcsmrff -j 4</p>
-</div></blockquote>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>make mcsmrff -j 4
+</pre></div>
+</div>
+</li>
+<li><p class="first">Add the path of Grad-MCSMRFF/MCSMRFF/pys to your PYTHONPATH variable:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s1">&#39;export PYTHONPATH=/path/to/Grad-MCSMRFF/MCSMRFF/pys:$PYTHONPATH&#39;</span> &gt;&gt; ~/.zshrc
+</pre></div>
+</div>
 </li>
 <li><p class="first">You&#8217;re done! Now you can use lammps with the lmp_mcsmrff file in your lammps/src directory.</p>
 </li>
 </ol>
-<p># To parameterize a force field</p>
-<ol class="arabic simple">
-<li>Build example structures for your system in Avogadro (including any OPLS bonds)</li>
-<li>Optimize with orca (e.g. Opt B97-D3 def2-TZVP)</li>
-<li>Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)</li>
-<li>Great a training set directory that houses directories for each orca result.  Each directory must include the .out, .engrad and system.cml file for that system</li>
-<li>Run <cite>python gradient_tersoff.py RUN_NAME</cite>. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.</li>
-<li>...</li>
-</ol>
+</div>
 
 
           </div>
@@ -118,9 +187,19 @@ Click &#8216;Add SSH key&#8217;</p>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">More Complicated Simple Reactive Force Field (MCSMRFF)</a></li>
+<li><a class="reference internal" href="#the-force-field">The Force Field</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="index.html"
-                        title="previous chapter">Welcome to MCSMRFF&#8217;s documentation!</a></p>
+                        title="previous chapter">MCSMRFF - Table of Contents!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Parameterization.html"
+                        title="next chapter">Parameterizing for MCSMRFF</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -149,7 +228,10 @@ Click &#8216;Add SSH key&#8217;</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="index.html" title="Welcome to MCSMRFF’s documentation!"
+          <a href="Parameterization.html" title="Parameterizing for MCSMRFF"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="MCSMRFF - Table of Contents!"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
       </ul>

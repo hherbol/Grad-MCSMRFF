@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>MCSMRFF - Table of Contents! &#8212; MCSMRFF 0.0.1 documentation</title>
+    <title>Parameterizing for MCSMRFF &#8212; MCSMRFF 0.0.1 documentation</title>
     
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -23,8 +23,8 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="MCSMRFF 0.0.1 documentation" href="#" />
-    <link rel="next" title="More Complicated Simple Reactive Force Field (MCSMRFF)" href="MCSMRFF.html" /> 
+    <link rel="top" title="MCSMRFF 0.0.1 documentation" href="index.html" />
+    <link rel="prev" title="Generating a Training Set" href="TrainGen.html" /> 
   </head>
   <body role="document">
     <div class="related" role="navigation" aria-label="related navigation">
@@ -34,9 +34,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="MCSMRFF.html" title="More Complicated Simple Reactive Force Field (MCSMRFF)"
-             accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
+          <a href="TrainGen.html" title="Generating a Training Set"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -45,18 +45,16 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="mcsmrff-table-of-contents">
-<h1>MCSMRFF - Table of Contents!<a class="headerlink" href="#mcsmrff-table-of-contents" title="Permalink to this headline">¶</a></h1>
-<p>Contents:</p>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="MCSMRFF.html">More Complicated Simple Reactive Force Field (MCSMRFF)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="MCSMRFF.html#the-force-field">The Force Field</a></li>
-<li class="toctree-l1"><a class="reference internal" href="MCSMRFF.html#installation">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="TrainGen.html">Generating a Training Set</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Parameterization.html">Parameterizing for MCSMRFF</a></li>
-</ul>
-</div>
+  <div class="section" id="parameterizing-for-mcsmrff">
+<h1>Parameterizing for MCSMRFF<a class="headerlink" href="#parameterizing-for-mcsmrff" title="Permalink to this headline">¶</a></h1>
+<ol class="arabic simple">
+<li>Build example structures for your system in Avogadro (including any OPLS bonds)</li>
+<li>Optimize with orca (e.g. Opt B97-D3 def2-TZVP)</li>
+<li>Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)</li>
+<li>Great a training set directory that houses directories for each orca result.  Each directory must include the .out, .engrad and system.cml file for that system</li>
+<li>Run <cite>python gradient_tersoff.py RUN_NAME</cite>. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.</li>
+<li>...</li>
+</ol>
 </div>
 
 
@@ -65,13 +63,13 @@
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h4>Next topic</h4>
-  <p class="topless"><a href="MCSMRFF.html"
-                        title="next chapter">More Complicated Simple Reactive Force Field (MCSMRFF)</a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="TrainGen.html"
+                        title="previous chapter">Generating a Training Set</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
-      <li><a href="_sources/index.txt"
+      <li><a href="_sources/Parameterization.txt"
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
@@ -96,9 +94,9 @@
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="MCSMRFF.html" title="More Complicated Simple Reactive Force Field (MCSMRFF)"
-             >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
+          <a href="TrainGen.html" title="Generating a Training Set"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">MCSMRFF 0.0.1 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">

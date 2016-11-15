@@ -1,0 +1,5 @@
+Generating a Training Set
+===================================
+
+To parameterize a Force Field, first the training set must be generated.  MCSMRFF
+comes with a built in Training Set Generator to assist in generating a robust set.
