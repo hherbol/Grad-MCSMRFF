@@ -1,0 +1,7 @@
+<molecule>
+ <atomArray>
+  <atom id="a1" elementType="Cs" x3="2.789383" y3="3.094822" z3="2.532548" label="352"/>
+ </atomArray>
+ <bondArray>
+ </bondArray>
+</molecule>

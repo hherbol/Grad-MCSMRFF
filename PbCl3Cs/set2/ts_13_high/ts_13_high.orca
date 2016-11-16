@@ -1,0 +1,14 @@
+! PW6B95 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid7 MORead
+%pal nprocs 2 end
+%method
+ RunTyp Gradient
+ end
+%maxcore 2000
+%moinp "previous.gbw"
+*xyz 0 1
+Pb 0.019494 1.108301 2.289586 
+Cl -0.112315 2.167400 -0.096870 
+Cl 1.941494 2.944260 3.081377 
+Cl 1.944017 -0.544002 1.433516 
+Cs 3.231698 2.336661 0.074295 
+*
