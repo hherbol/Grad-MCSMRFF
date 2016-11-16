@@ -9,7 +9,7 @@ Tersoff potentials, Coulombic potentials, and Lennard-Jones potentials.  This co
 3. Automatic parameterization method
 
 The Force Field
-===================================
+------------------------------------
 
 The MCSMRFF force field works as follows:
 
@@ -90,7 +90,7 @@ Looking through these equations, the following are all terms that we must parame
 	:math:`cos\theta_0` - The minimum angle for which this contribution is minimized.
 
 Installation
-===================================
+------------------------------------
 
 1.	Download `LAMMPS <http://lammps.sandia.gov/download.html>`_ (`older versions here <http://lammps.sandia.gov/tars/>`_). Some versions will not work - the 7 Dec 2015 is the one we've tested the most, so use that one. 
 	
