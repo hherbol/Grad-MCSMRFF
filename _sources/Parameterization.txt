@@ -12,8 +12,3 @@ Parameterizing for MCSMRFF
 5.	Run `python gradient_tersoff.py RUN_NAME`. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.
 
 6.  ...
-
-Subsection
-------------------------------------
-
-test
