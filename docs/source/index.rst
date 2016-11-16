@@ -9,7 +9,8 @@ MCSMRFF - Table of Contents!
 Contents:
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    MCSMRFF
+   TrainGen
    Parameterization
