@@ -1,11 +1,11 @@
-import os, sys
-import cPickle as pickle
+import os
+import sys
 import numpy as np
 import copy
 
-import constants
-
-import mcsmrff_files, mcsmrff_utils, mcsmrff_gradient
+import mcsmrff_files
+import mcsmrff_utils
+import mcsmrff_gradient
 
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000, gtol=1E-3, perturbation=1.01,
