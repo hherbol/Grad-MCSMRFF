@@ -14,3 +14,9 @@ Contents:
    MCSMRFF
    TrainGen
    Parameterization
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`search`
