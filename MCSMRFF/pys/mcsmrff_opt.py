@@ -17,7 +17,7 @@ Optimization algorithm for parameterization of MCSMRFF.  Works as follows:
 import os
 import time
 
-import log
+import jobs as JLIST
 
 from mcsmrff_lhs import create_lhs
 from mcsmrff_queue_job import job
@@ -27,13 +27,13 @@ from mcsmrff_files import read_params, write_params
 def run_mcsmrff_optimizer(
     n_sets=3,
     sim_name="Debug",
+    lennard_jones=None,
+    atom_list=None,
+    path_to_parameters=None,
     training_set_pickle_path=(
         "/fs/home/hch54/"
         "Grad-MCSMRFF/MCSMRFF/training_sets/"
-        "training_set.pickle"),
-    path_to_parameters=(
-        "parameters/"
-        "run_0_output.tersoff")):
+        "training_set.pickle")):
     """
     Run an optimization for the tersoff parameters.
 
@@ -43,6 +43,10 @@ def run_mcsmrff_optimizer(
             The number of parameter sets to run in parallel.
         sim_name: *str, optional*
             The name for this optimization.
+        lj_paramlist: *list, list, float*
+            Three lists, holding (1) charges, (2) LJ sigma, and (3) LJ epsilon
+        atom_list: *list, str*
+            1D array holding the different 3-body interactions
         training_set_pickle_path: *str, optional*
             The path to the pickled training set.
         path_to_parameters: *str, optional*
@@ -58,7 +62,18 @@ def run_mcsmrff_optimizer(
 
     # Read in the lennard jones and atom list from
     # another mcsmrff .tersoff file
-    P1, P2, _ = read_params(path_to_parameters, exact=True)
+    if lennard_jones is not None:
+        P1 = lennard_jones
+    if atom_list is not None:
+        P2 = atom_list
+    if path_to_parameters is not None:
+        P1, P2, _ = read_params(path_to_parameters, exact=True)
+
+    if (lennard_jones is None and
+            atom_list is None and
+            path_to_parameters is None):
+        raise Exception("Need to specify parameters, either from old parameter \
+file, or manually.")
 
     # Part 2, submit jobs to queue
     if not os.path.isdir(sim_name):
@@ -95,7 +110,7 @@ def run_mcsmrff_optimizer(
     job_output = {}
     while len(jobs) > 0:
         time.sleep(60)
-        running = log.get_jlist()
+        running = JLIST.get_running_jobs()
         to_kill = []
         for i, j in enumerate(jobs):
             if j not in running:

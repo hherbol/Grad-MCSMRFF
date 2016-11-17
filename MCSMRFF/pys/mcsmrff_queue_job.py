@@ -1,5 +1,5 @@
 import os
-from job import pysub
+from jobs import pysub
 
 
 def job(run_name, parameters,
