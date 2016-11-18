@@ -6,9 +6,12 @@ import structures
 I_, I = 66, 838
 Cl_, Cl = 21, 344
 Pb_, Pb = 111, 907
+Cs_, Cs = 72, 352
 H_ = 54
 N_ = 53
 HN = 233
+
+tersoff_atoms = [Pb, Cl, Cs]
 
 extra_Pb = {
     Pb: structures.Struct(index=Pb,

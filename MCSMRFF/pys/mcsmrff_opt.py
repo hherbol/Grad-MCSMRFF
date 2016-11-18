@@ -62,12 +62,12 @@ def run_mcsmrff_optimizer(
 
     # Read in the lennard jones and atom list from
     # another mcsmrff .tersoff file
+    if path_to_parameters is not None:
+        P1, P2, _ = read_params(path_to_parameters, exact=True)
     if lennard_jones is not None:
         P1 = lennard_jones
     if atom_list is not None:
         P2 = atom_list
-    if path_to_parameters is not None:
-        P1, P2, _ = read_params(path_to_parameters, exact=True)
 
     if (lennard_jones is None and
             atom_list is None and
