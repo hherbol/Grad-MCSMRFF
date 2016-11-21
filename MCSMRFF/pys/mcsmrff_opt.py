@@ -90,7 +90,7 @@ file, or manually.")
         pname = "parameters/" + job_name
         write_params(P1, P2, P3, pname, append="")
 
-        job(job_name, pname,
+        job(job_name, pname, atom_list,
             new_pdf_props={"persist": False,
                            "start": 0.0,
                            "stop": 10.0,

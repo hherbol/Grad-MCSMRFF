@@ -2,7 +2,7 @@ import os
 from jobs import pysub
 
 
-def job(run_name, parameters,
+def job(run_name, parameters, atom_list,
         path="", new_pdf_props={}, new_opt_props={}, disregard=[]):
 
     training_set_pickle_path = (
@@ -37,16 +37,7 @@ import mcsmrff_run
 import mcsmrff_utils
 
 # Optimize the parameters
-perturbate_these = [
-                "Pb,Pb,Pb",
-                "Pb,Pb,Cl",
-                "Pb,Cl,Pb",
-                "Pb,Cl,Cl",
-                "Cl,Pb,Pb",
-                "Cl,Pb,Cl",
-                "Cl,Cl,Pb",
-                "Cl,Cl,Cl"
-            ]
+perturbate_these = ''' + str(atom_list) + '''
 
 new_parameters = BFGS("$RUN_NAME$",
                       step_size=$STEP_SIZE$,
