@@ -5,16 +5,18 @@
 
 import files
 import structures
+import os
 from sysconst import lammps_mcsmrff as LAMMPS_DIR
 from hashlib import md5
 from re import findall
 
 import mcsmrff_files
 import mcsmrff_utils
-from mcsmrff_constants import *
+
+import units
 
 
-def run_mcsmrff(run_name, system, parameters, seed=None):
+def run_mcsmrff(run_name, system, parameters, tersoff_atoms, seed=None):
     print("\n\n\n")
     for i in range(5):
         for j in range(50):
@@ -55,7 +57,12 @@ def run_mcsmrff(run_name, system, parameters, seed=None):
     ''').splitlines()
 
     # Removed HN for no H3 input types
-    tersoff_types = [t for t in system.atom_types if t.index in [Pb, Cl]]
+    tersoff_types = [t for t in system.atom_types
+                     if t.index in tersoff_atoms]
+
+    elems_by_index = [(t.lammps_type, t.element) for t in system.atom_types]
+    elems_by_index = sorted(elems_by_index, key=lambda x: [0])
+    elems_by_index = ' '.join([units.elem_i2s(e[1]) for e in elems_by_index])
 
     # Grab the parameters. Could in theory just use "parameters" variable,
     # but too lazy to change code
@@ -130,6 +137,7 @@ def run_mcsmrff(run_name, system, parameters, seed=None):
     commands = '''
     neigh_modify every 1 check yes delay 0
     dump    1 all xyz 100 ''' + run_name + '''.xyz
+    dump_modify 1 element ''' + elems_by_index + '''
     dump    2 all custom 100 ''' + run_name + '''2.dump type xu yu zu
     thermo_style custom step temp press ke pe epair emol vol
     thermo 1000
@@ -164,7 +172,7 @@ def run_mcsmrff(run_name, system, parameters, seed=None):
     print("\n\n\n")
 
 
-def get_glimpse(s):
+def get_glimpse(s, tersoff_atoms):
     print("Running glimpse for s = %s\n\n" % s)
 
     run_name = "glimpse_%s" % s
@@ -177,4 +185,7 @@ def get_glimpse(s):
     # Run MCSMRFF with initial parameters ONLY IF IT HASN'T BEEN ALREADY DONE!
     running_parameters = mcsmrff_files.read_params("parameters/%s" %
                                                    parameters, exact=True)
-    run_mcsmrff("%s" % run_name, test_system, running_parameters)
+    run_mcsmrff("%s" % run_name,
+                test_system,
+                running_parameters,
+                tersoff_atoms)

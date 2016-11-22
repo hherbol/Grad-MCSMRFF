@@ -2,7 +2,7 @@ import os
 from jobs import pysub
 
 
-def job(run_name, parameters, atom_list,
+def job(run_name, parameters, atom_list, tersoff_atoms,
         path="", new_pdf_props={}, new_opt_props={}, disregard=[]):
 
     training_set_pickle_path = (
@@ -49,9 +49,10 @@ new_parameters = BFGS("$RUN_NAME$",
                       lj_coul=None,
                       opt="Force",
                       reset_step_size=5,
-                      training_set_file_path=\"$TRAINING_SET_FILE_PATH$\")
+                      training_set_file_path=\"$TRAINING_SET_FILE_PATH$\",
+                      tersoff_atoms=$TERSOFF_ATOMS$)
 
-mcsmrff_run.get_glimpse("$RUN_NAME$")
+mcsmrff_run.get_glimpse("$RUN_NAME$", $TERSOFF_ATOMS$)
 
 rms, _ = mcsmrff_utils.pdf_metric("glimpse_$RUN_NAME$",
                                   lammps_job=True,
@@ -65,6 +66,9 @@ rms, _ = mcsmrff_utils.pdf_metric("glimpse_$RUN_NAME$",
 print("\\n\\nRMS for run '$RUN_NAME$' is %.5f\\n\\n" % rms)
 '''
 
+    for i in range(2):
+        file_string = file_string.replace("$TERSOFF_ATOMS$",
+                                          str(tersoff_atoms))
     for i in range(4):
         file_string = file_string.replace("$RUN_NAME$", run_name)
     if parameters.endswith(".tersoff"):

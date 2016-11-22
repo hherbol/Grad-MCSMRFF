@@ -42,5 +42,6 @@ mcsmrff_opt.run_mcsmrff_optimizer(
     training_set_pickle_path=(
         "/fs/home/hch54/"
         "Grad-MCSMRFF/PbCl3Cs/set2/"
-        "set2.pickle")
+        "set2.pickle"),
+    tersoff_atoms=tersoff_atoms
 )

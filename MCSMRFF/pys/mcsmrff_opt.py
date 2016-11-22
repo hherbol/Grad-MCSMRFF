@@ -30,6 +30,7 @@ def run_mcsmrff_optimizer(
     lennard_jones=None,
     atom_list=None,
     path_to_parameters=None,
+    tersoff_atoms=[],
     training_set_pickle_path=(
         "/fs/home/hch54/"
         "Grad-MCSMRFF/MCSMRFF/training_sets/"
@@ -90,7 +91,7 @@ file, or manually.")
         pname = "parameters/" + job_name
         write_params(P1, P2, P3, pname, append="")
 
-        job(job_name, pname, atom_list,
+        job(job_name, pname, atom_list, tersoff_atoms,
             new_pdf_props={"persist": False,
                            "start": 0.0,
                            "stop": 10.0,

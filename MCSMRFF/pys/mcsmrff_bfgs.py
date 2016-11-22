@@ -117,7 +117,8 @@ error_force (%)        error_energy (%)\
             np.array(current_parameters[2]).copy())
         current_gradient = mcsmrff_gradient.get_gradient(
             list(current_parameters), atoms, systems_by_composition,
-            run_name, perturbation=perturbation, three_body=three_body)
+            run_name, perturbation=perturbation, three_body=three_body,
+            tersoff_atoms=tersoff_atoms)
 
         # Scale the gradient by the largest value. This is because our
         # "gradient" is relatively arbitrary and we want full control
@@ -211,12 +212,14 @@ error_force (%)        error_energy (%)\
                                     new_parameters[1],
                                     new_parameters[2],
                                     run_name)
-        new_gradient = mcsmrff_gradient.get_gradient(list(new_parameters),
-                                                     atoms,
-                                                     systems_by_composition,
-                                                     run_name,
-                                                     perturbation=perturbation,
-                                                     three_body=three_body)
+        new_gradient = mcsmrff_gradient.get_gradient(
+            list(new_parameters),
+            atoms,
+            systems_by_composition,
+            run_name,
+            perturbation=perturbation,
+            three_body=three_body,
+            tersoff_atoms=tersoff_atoms)
         # Scale the gradient by the largest value. This is because our
         # "gradient" is relatively arbitrary and we want full control by
         # the specified step_size and step_size_adjustment variables
