@@ -64,7 +64,8 @@ def run_lammps(system, systems_by_composition, tersoff_atoms,
 
     # Indices of OPLS parameters
     tersoff_types = [t for t in system.atom_types
-                     if t.element in tersoff_atoms]
+                     if t.index in tersoff_atoms]
+
     charges = lj_params[0]
     lj_sigma = lj_params[1]
     lj_epsilon = lj_params[2]
@@ -234,7 +235,7 @@ def indices_of_desired_three_body(element_strings, three_body):
     else:
         index = []
         for i, s in enumerate(element_list):
-            if ",".join(s) in three_body:
+            if ", ".join(s) in three_body:
                 index.append(i)
         if index == []:
             raise Exception("No three_body set in three_body variable.")
@@ -297,7 +298,7 @@ def get_gradient(parameters, system, systems_by_composition, run_name,
         else:
             perturbed_parameters[i] = p * perturbation
 
-        p1 = perturbed_parameters[:nLJ].reshape((-1, 2))
+        p1 = perturbed_parameters[:nLJ].reshape((-1, len(p_lj)))
         p2 = perturbed_parameters[nLJ:]
 
         run_lammps(atoms, systems_by_composition, tersoff_atoms,

@@ -1,7 +1,7 @@
 <molecule>
   <molecule>
     <atomArray>
-      <atom id="a1" elementType="Pb" x3="0.379744" y3="0.298172" z3="0.507203" label="356"/>
+      <atom id="a1" elementType="Pb" x3="0.379744" y3="0.298172" z3="0.507203" label="907"/>
       <atom id="a2" elementType="Cl" x3="2.998777" y3="0.377217" z3="0.961895" label="344"/>
       <atom id="a3" elementType="Cl" x3="0.487310" y3="2.516103" z3="-0.715098" label="344"/>
       <atom id="a4" elementType="Cl" x3="-0.133924" y3="1.464325" z3="2.749162" label="344"/>
