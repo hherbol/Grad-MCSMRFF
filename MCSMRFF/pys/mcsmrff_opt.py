@@ -30,6 +30,9 @@ def run_mcsmrff_optimizer(
     lennard_jones=None,
     atom_list=None,
     path_to_parameters=None,
+    tersoff=None,
+    lj_coul=None,
+    constant_charge=True,
     tersoff_atoms=[],
     training_set_pickle_path=(
         "/fs/home/hch54/"
@@ -92,6 +95,9 @@ file, or manually.")
         write_params(P1, P2, P3, pname, append="")
 
         job(job_name, pname, atom_list, tersoff_atoms,
+            tersoff=tersoff,
+            lj_coul=lj_coul,
+            constant_charge=constant_charge,
             new_pdf_props={"persist": False,
                            "start": 0.0,
                            "stop": 10.0,

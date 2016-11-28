@@ -3,6 +3,7 @@ from jobs import pysub
 
 
 def job(run_name, parameters, atom_list, tersoff_atoms,
+        tersoff=None, lj_coul=None, constant_charge=True,
         path="", new_pdf_props={}, new_opt_props={}, disregard=[]):
 
     training_set_pickle_path = (
@@ -45,8 +46,9 @@ new_parameters = BFGS("$RUN_NAME$",
                       perturbation=$PERTURBATION$,
                       param_file="$PARAMETERS$",
                       three_body=perturbate_these,
-                      tersoff=None,
-                      lj_coul=None,
+                      tersoff=$TERSOFF$,
+                      lj_coul=$LJ_COUL$,
+                      constant_charge=$CONSTANT_CHARGE$,
                       opt="Force",
                       reset_step_size=5,
                       training_set_file_path=\"$TRAINING_SET_FILE_PATH$\",
@@ -69,6 +71,12 @@ print("\\n\\nRMS for run '$RUN_NAME$' is %.5f\\n\\n" % rms)
     for i in range(2):
         file_string = file_string.replace("$TERSOFF_ATOMS$",
                                           str(tersoff_atoms))
+    file_string = file_string.replace("$TERSOFF$",
+                                      str(tersoff))
+    file_string = file_string.replace("$LJ_COUL$",
+                                      str(lj_coul))
+    file_string = file_string.replace("$CONSTANT_CHARGE$",
+                                      str(constant_charge))
     for i in range(4):
         file_string = file_string.replace("$RUN_NAME$", run_name)
     if parameters.endswith(".tersoff"):

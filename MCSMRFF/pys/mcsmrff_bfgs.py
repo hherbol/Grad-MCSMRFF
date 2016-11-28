@@ -12,7 +12,8 @@ import mcsmrff_constants
 # A function for steepest descent optimization of parameters
 def bfgs(run_name, step_size=0.05, step_size_adjustment=0.5, maxiter=1000,
          gtol=1E-3, perturbation=1.01, param_file=None, three_body=None,
-         tersoff=None, lj_coul=None, opt="Force", linesearch="armijo",
+         tersoff=None, lj_coul=None, constant_charge=True,
+         opt="Force", linesearch="armijo",
          armijio_line_search_factor=1E-4, reset_step_size=10,
          max_step_size=0.2, display=0, callback=None,
          training_set_file_path=None,
@@ -116,8 +117,15 @@ error_force (%)        error_energy (%)\
             np.array(current_parameters[0]).flatten().copy(),
             np.array(current_parameters[2]).copy())
         current_gradient = mcsmrff_gradient.get_gradient(
-            list(current_parameters), atoms, systems_by_composition,
-            run_name, perturbation=perturbation, three_body=three_body,
+            list(current_parameters),
+            atoms,
+            systems_by_composition,
+            run_name,
+            perturbation=perturbation,
+            three_body=three_body,
+            tersoff=tersoff,
+            lj_coul=lj_coul,
+            constant_charge=constant_charge,
             tersoff_atoms=tersoff_atoms)
 
         # Scale the gradient by the largest value. This is because our
@@ -219,7 +227,11 @@ error_force (%)        error_energy (%)\
             run_name,
             perturbation=perturbation,
             three_body=three_body,
+            tersoff=tersoff,
+            lj_coul=lj_coul,
+            constant_charge=constant_charge,
             tersoff_atoms=tersoff_atoms)
+
         # Scale the gradient by the largest value. This is because our
         # "gradient" is relatively arbitrary and we want full control by
         # the specified step_size and step_size_adjustment variables

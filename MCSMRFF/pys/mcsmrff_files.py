@@ -120,9 +120,7 @@ def read_params(run_name, exact=False):
     for atom_triplet in tersoff_strings:
         for param in atom_triplet[3:]:
             tersoff_paramlist.append(np.float64(param))
-        for atom in atom_triplet[:3]:
-            # list of all atoms (Pb Pb Cl, Pb Cl Cl, etc)
-            atom_list.append(atom)
+        atom_list.append(", ".join(atom_triplet[:3]))
 
     # Returns a list of all the parameters for both LJ and Tersoff
     # as well as the atoms used
@@ -140,7 +138,8 @@ def write_params(lj_params, atom_list, tersoff_params, filename, append="_o"):
         lj_paramlist: *list, list, float*
             Three lists, holding (1) charges, (2) LJ sigma, and (3) LJ epsilon
         atom_list: *list, str*
-            1D array holding the different 3-body interactions within the file
+            1D array holding the different 3-body interactions within the file.
+            Each 3-body interaction must be in the "A, B, C" string format.
         tersoff_paramlist: *list, float*
             1D array holding the different tersoff parameters
         filename: *str*
@@ -163,12 +162,13 @@ def write_params(lj_params, atom_list, tersoff_params, filename, append="_o"):
                 '''        lambda1,  A\n''')
 
     i, j = 0, 0
+    #atom_list = [x.strip() for a in atom_list for x in a.split(",") if x != ""]
     # Write the output of the tersoff params, atoms in the list, etc.
     while i < (len(tersoff_params) - 1):
         ofile.write(_write_atom_line(atom_list, j) +
                     _write_param_line(tersoff_params, i))
         i += 14
-        j += 3
+        j += 1
     return
 
 
@@ -196,7 +196,13 @@ def _write_param_line(tersoff, i):
 # Write a single line of atoms (given the atom list and the index of the line.
 # primarily written in conjunction with write_params
 def _write_atom_line(atom, i):
-    return ("%s %s %s\t" % (atom[i], atom[i + 1], atom[i + 2]))
+    if type(atom[i]) != str:
+        s = ", ".join(atom[i])
+    else:
+        s = atom[i]
+    s = [x.strip() for x in s.split(",") if x.strip != ""]
+    return ("%s\t" % " ".join(s))
+    # return ("%s %s %s\t" % (atom[i], atom[i + 1], atom[i + 2]))
 
 
 # NOTE - Systems are in order of "left" to "right" on the x axis

@@ -1,38 +1,15 @@
 import mcsmrff_opt
+import itertools
 
 LJ = [[2.0, -1.0, 1.0], [3.98892, 4.15625, 4.0], [0.1, 0.1, 0.1]]
-three_body_interactions = ['Pb, Pb, Pb',
-                           'Pb, Pb, Cl',
-                           'Pb, Pb, Cs',
-                           'Pb, Cl, Pb',
-                           'Pb, Cl, Cl',
-                           'Pb, Cl, Cs',
-                           'Pb, Cs, Pb',
-                           'Pb, Cs, Cl',
-                           'Pb, Cs, Cs',
-                           'Cl, Pb, Pb',
-                           'Cl, Pb, Cl',
-                           'Cl, Pb, Cs',
-                           'Cl, Cl, Pb',
-                           'Cl, Cl, Cl',
-                           'Cl, Cl, Cs',
-                           'Cl, Cs, Pb',
-                           'Cl, Cs, Cl',
-                           'Cl, Cs, Cs',
-                           'Cs, Pb, Pb',
-                           'Cs, Pb, Cl',
-                           'Cs, Pb, Cs',
-                           'Cs, Cl, Pb',
-                           'Cs, Cl, Cl',
-                           'Cs, Cl, Cs',
-                           'Cs, Cs, Pb',
-                           'Cs, Cs, Cl',
-                           'Cs, Cs, Cs']
 
 Pb = 907
 Cl = 344
 Cs = 352
+elems = ["Pb", "Cl", "Cs"]
 tersoff_atoms = [Pb, Cl, Cs]
+
+three_body_interactions = list(itertools.product(elems, repeat=3))
 
 mcsmrff_opt.run_mcsmrff_optimizer(
     n_sets=5,

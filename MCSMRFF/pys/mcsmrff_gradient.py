@@ -75,12 +75,12 @@ def run_lammps(system, systems_by_composition, tersoff_atoms,
     tersoff_strings, i, j = [], 0, 0
     # Concatenate the atom names and params
     while i < (len(tersoff_params) - 1):
-        tmp = atom_list[j:j + 3]
+        tmp = atom_list[j].split(",")
         for param in tersoff_params[i:i + 14]:
             tmp.append(str(param))
         tersoff_strings.append(tmp)
         i += 14
-        j += 3
+        j += 1
 
     # R and D are the distances from the center of the first atom, so this is
     # how we get the cutoff distance between those
@@ -229,13 +229,14 @@ def indices_of_desired_three_body(element_strings, three_body):
 
         stuff:
     """
-    element_list = np.array(element_strings).reshape((-1, 3))
+    element_list = np.array(element_strings).flatten()
     if three_body is None:
         index = range(len(element_list))
     else:
+        concat_three_body = [", ".join(s) for s in three_body]
         index = []
         for i, s in enumerate(element_list):
-            if ", ".join(s) in three_body:
+            if s in concat_three_body:
                 index.append(i)
         if index == []:
             raise Exception("No three_body set in three_body variable.")
@@ -244,7 +245,7 @@ def indices_of_desired_three_body(element_strings, three_body):
 
 def get_gradient(parameters, system, systems_by_composition, run_name,
                  perturbation=1.01, three_body=None,
-                 tersoff=None, lj_coul=None,
+                 tersoff=None, lj_coul=None, constant_charge=True,
                  tersoff_atoms=mcsmrff_constants.tersoff_atoms):
     """
     A function to calculate the gradient of the MCSMRFF parameters given an
@@ -263,10 +264,14 @@ def get_gradient(parameters, system, systems_by_composition, run_name,
 
     indices_three_body = indices_of_desired_three_body(parameters[1],
                                                        three_body)
+
+    N_tersoff = len(p_lj[0])
     if tersoff is None:
         tersoff = range(14)
     if lj_coul is None:
-        lj_coul = range(6)
+        lj_coul = range(N_tersoff * 3)
+    if constant_charge:
+        lj_coul = np.array([x for x in lj_coul if x not in range(N_tersoff)])
 
     atoms = copy.deepcopy(system)
     atoms.name = atoms.name + "_grad_calc"
