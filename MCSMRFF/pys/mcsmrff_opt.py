@@ -25,19 +25,18 @@ from mcsmrff_files import read_params, write_params
 
 
 def run_mcsmrff_optimizer(
-    n_sets=3,
-    sim_name="Debug",
-    lennard_jones=None,
-    atom_list=None,
-    path_to_parameters=None,
-    tersoff=None,
-    lj_coul=None,
-    constant_charge=True,
-    tersoff_atoms=[],
-    training_set_pickle_path=(
-        "/fs/home/hch54/"
-        "Grad-MCSMRFF/MCSMRFF/training_sets/"
-        "training_set.pickle")):
+        n_sets=3,
+        sim_name="Debug",
+        lennard_jones=None,
+        atom_list=None,
+        path_to_parameters=None,
+        tersoff=None,
+        lj_coul=None,
+        constant_charge=True,
+        tersoff_atoms=[],
+        new_pdf_props={},
+        new_opt_props={},
+        training_set_pickle_path=None):
     """
     Run an optimization for the tersoff parameters.
 
@@ -98,16 +97,8 @@ file, or manually.")
             tersoff=tersoff,
             lj_coul=lj_coul,
             constant_charge=constant_charge,
-            new_pdf_props={"persist": False,
-                           "start": 0.0,
-                           "stop": 10.0,
-                           "step": 0.05,
-                           "cutoff": 10.0,
-                           "quanta": 0.001},
-            new_opt_props={"step_size": 0.1,
-                           "maxiter": 3,
-                           "perturbation": 1.01,
-                           "training_set_file_path": training_set_pickle_path},
+            new_pdf_props=new_pdf_props,
+            new_opt_props=new_opt_props,
             disregard=["N", "C", "H"])
         jobs.append(job_name)
 

@@ -11,6 +11,8 @@ tersoff_atoms = [Pb, Cl, Cs]
 
 three_body_interactions = list(itertools.product(elems, repeat=3))
 
+path = "/fs/home/hch54/Grad-MCSMRFF/PbCl3Cs/set2/set2.pickle"
+
 mcsmrff_opt.run_mcsmrff_optimizer(
     n_sets=5,
     sim_name="test",
@@ -19,9 +21,9 @@ mcsmrff_opt.run_mcsmrff_optimizer(
     tersoff=None,
     lj_coul=None,
     constant_charge=True,
-    training_set_pickle_path=(
-        "/fs/home/hch54/"
-        "Grad-MCSMRFF/PbCl3Cs/set2/"
-        "set2.pickle"),
+    new_opt_props={"step_size": 0.1,
+                   "maxiter": 100,
+                   "perturbation": 1.01,
+                   "training_set_file_path": path},
     tersoff_atoms=tersoff_atoms
 )

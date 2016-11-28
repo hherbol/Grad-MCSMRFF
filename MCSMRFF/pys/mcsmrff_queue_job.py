@@ -6,10 +6,6 @@ def job(run_name, parameters, atom_list, tersoff_atoms,
         tersoff=None, lj_coul=None, constant_charge=True,
         path="", new_pdf_props={}, new_opt_props={}, disregard=[]):
 
-    training_set_pickle_path = (
-        "/fs/home/hch54/"
-        "Grad-MCSMRFF/MCSMRFF/training_sets/"
-        "training_set.pickle")
     pdf_props = {"start": 0.0,
                  "stop": 5.0,
                  "step": 0.01,
@@ -19,7 +15,7 @@ def job(run_name, parameters, atom_list, tersoff_atoms,
     opt_props = {"step_size": 0.1,
                  "maxiter": 1000,
                  "perturbation": 1.01,
-                 "training_set_file_path": training_set_pickle_path}
+                 "training_set_file_path": None}
     for prop in new_pdf_props:
         if prop in pdf_props:
             pdf_props[prop] = new_pdf_props[prop]
@@ -51,7 +47,7 @@ new_parameters = BFGS("$RUN_NAME$",
                       constant_charge=$CONSTANT_CHARGE$,
                       opt="Force",
                       reset_step_size=5,
-                      training_set_file_path=\"$TRAINING_SET_FILE_PATH$\",
+                      training_set_file_path=$TRAINING_SET_FILE_PATH$,
                       tersoff_atoms=$TERSOFF_ATOMS$)
 
 mcsmrff_run.get_glimpse("$RUN_NAME$", $TERSOFF_ATOMS$)
@@ -77,6 +73,12 @@ print("\\n\\nRMS for run '$RUN_NAME$' is %.5f\\n\\n" % rms)
                                       str(lj_coul))
     file_string = file_string.replace("$CONSTANT_CHARGE$",
                                       str(constant_charge))
+    if opt_props["training_set_file_path"] is None:
+        s = None
+    else:
+        s = "\"%s\"" % opt_props["training_set_file_path"]
+    file_string = file_string.replace("$TRAINING_SET_FILE_PATH$",
+                                      str(s))
     for i in range(4):
         file_string = file_string.replace("$RUN_NAME$", run_name)
     if parameters.endswith(".tersoff"):
