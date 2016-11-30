@@ -17,7 +17,7 @@ from mcsmrff_constants import *
 
 
 # A function to read in the seed folder
-def read_seed(path="./seed"):
+def read_seed(path="./seed", extra_parameters={}):
     """
     Read in all cml files from the seed directory.
 
@@ -25,6 +25,8 @@ def read_seed(path="./seed"):
 
         path: *str, optional*
             A path to the seed directory.
+        extra_parameters: *dict, optional*
+            Additional parameters to add to OPLSAA.
 
     **Returns**
 
@@ -46,7 +48,8 @@ def read_seed(path="./seed"):
         molecules_A.append(files.read_cml(path + "/" + fptr,
                                           return_molecules=True,
                                           allow_errors=True,
-                                          test_charges=False))
+                                          test_charges=False,
+                                          extra_parameters=extra_parameters))
 
     if molecules_A == []:
         raise Exception("Seed directory is empty")
@@ -67,7 +70,8 @@ def read_seed(path="./seed"):
     return molecules_A, molecules_B
 
 
-def compile_training_set(path="./training_set"):
+def compile_training_set(path="./training_set",
+                         extra_parameters={}):
     if path.endswith("/"):
         path = path[:-1]
     if not os.path.exists(path):
@@ -79,7 +83,8 @@ def compile_training_set(path="./training_set"):
         atoms = files.read_cml(path + "/" + str(i) + ".cml",
                                return_molecules=False,
                                allow_errors=True,
-                               test_charges=False)[0]
+                               test_charges=False,
+                               extra_parameters=extra_parameters)[0]
         frames.append(atoms)
         i += 1
     files.write_xyz(frames, "full_training_set")
@@ -93,7 +98,8 @@ def generate_training_set(N_perterbations_per_seed=5,
                           expansion_step=0.5,
                           N_expansion=10,
                           N_perterbations_per_expansion=5,
-                          training_sets_folder="training_set"):
+                          training_sets_folder="training_set",
+                          extra_parameters={}):
     """
     From a seed directory of cml files, generate a more robust training set.
     """
@@ -105,7 +111,7 @@ already in existance.")
     training_set_counter = 0
 
     # Generate seed list
-    seeds_A, seeds_B = read_seed()
+    seeds_A, seeds_B = read_seed(extra_parameters=extra_parameters)
 
     # Add seed list to training set list
     for mol in seeds_B:
@@ -157,7 +163,8 @@ already in existance.")
                     training_set_counter += 1
 
 
-def run_low_level(training_sets_folder="training_set", procs=1, queue=None):
+def run_low_level(training_sets_folder="training_set", procs=1, queue=None,
+                  extra_parameters={}):
     if not os.path.exists(training_sets_folder):
         raise Exception("No training set folder to run.")
 
@@ -175,7 +182,8 @@ def run_low_level(training_sets_folder="training_set", procs=1, queue=None):
         atoms = files.read_cml("%s/%d.cml" % (training_sets_folder, i),
                                allow_errors=True,
                                test_charges=False,
-                               return_molecules=False)[0]
+                               return_molecules=False,
+                               extra_parameters=extra_parameters)[0]
         charge = sum([a.type.charge for a in atoms])
         running_jobs.append(orca.job("ts_%d" % i, route,
                                      atoms=atoms,
@@ -188,7 +196,8 @@ def run_low_level(training_sets_folder="training_set", procs=1, queue=None):
     return running_jobs
 
 
-def run_high_level(training_sets_folder="training_set", procs=1, queue=None):
+def run_high_level(training_sets_folder="training_set", procs=1, queue=None,
+                   extra_parameters={}):
     if not os.path.exists(training_sets_folder):
         raise Exception("No training set folder to run.")
 
@@ -207,7 +216,8 @@ def run_high_level(training_sets_folder="training_set", procs=1, queue=None):
         atoms = files.read_cml("%s/%d.cml" % (training_sets_folder, i),
                                allow_errors=True,
                                test_charges=False,
-                               return_molecules=False)[0]
+                               return_molecules=False,
+                               extra_parameters=extra_parameters)[0]
         charge = sum([a.type.charge for a in atoms])
         prev_converged = orca.read("ts_%d" % i).converged
         if prev_converged:
@@ -237,7 +247,8 @@ def pickle_training_set(run_name,
                         pickle_file_name="training_set",
                         high_energy_cutoff=500.0,
                         system_x_offset=1000.0,
-                        verbose=False):
+                        verbose=False,
+			extra_parameters={}):
     """
     A function to pickle together the training set in a manner that is
     readable for MCSMRFF.  This is a single LAMMPs data file with each
@@ -261,6 +272,9 @@ def pickle_training_set(run_name,
             The x offset for the systems to be added by.
         verbose: *bool, optional*
             Whether to have additional stdout or not.
+        extra_parameters: *dict, optional*
+            A dictionaries for additional parameters that do not exist
+            in the default OPLSAA parameter file.
 
     **Returns**
 
@@ -327,7 +341,7 @@ results not found..." % name)
         # Get the bonding information
         with_bonds = structures.Molecule("%s/%s/%s.cml"
                                          % (training_sets_folder, name, name),
-                                         extra_parameters=extra_Pb,
+                                         extra_parameters=extra_parameters,
                                          allow_errors=True,
                                          test_charges=False)
 
@@ -413,7 +427,7 @@ is too high..." % systems_by_composition[d1][d2].name
     return system, systems_by_composition
 
 
-def minimize_seeds(procs=4, queue=None):
+def minimize_seeds(procs=4, queue=None, extra_parameters={}):
     """
     A function to optimize the geometry of the supplied seeds in the seed
     directory.  Each optimized structure is then added to the seed directory
@@ -435,7 +449,8 @@ def minimize_seeds(procs=4, queue=None):
     for seed in os.listdir("seed"):
         seeds.append(files.read_cml("seed/%s" % seed,
                                     allow_errors=True,
-                                    test_charges=False)[0])
+                                    test_charges=False,
+                                    extra_parameters=extra_parameters)[0])
         seed_names.append(seed.split(".cml")[0])
     jobs = []
     for i, seed in enumerate(seeds):
@@ -472,7 +487,8 @@ def minimize_seeds(procs=4, queue=None):
         cml_file = files.read_cml("seed/%s" % seed_names[i],
                                   allow_errors=True,
                                   test_charges=False,
-                                  return_molecules=True)
+                                  return_molecules=True,
+                                  extra_parameters=extra_parameters)
         j = 0
         for mol in cml_file:
             for k, a in enumerate(mol.atoms):
@@ -495,9 +511,10 @@ def create_training_set(run_name,
                         training_sets_folder="training_set",
                         queue=None,
                         procs=1,
-                        persist=False):
+                        persist=False,
+                        extra_parameters={}):
     if min_seeds:
-        minimize_seeds()
+        minimize_seeds(extra_parameters=extra_parameters)
     generate_training_set(
         N_perterbations_per_seed=N_perterbations_per_seed,
         perterbation_dx=perterbation_dx,
@@ -507,19 +524,23 @@ def create_training_set(run_name,
         expansion_step=expansion_step,
         N_expansion=N_expansion,
         N_perterbations_per_expansion=N_perterbations_per_expansion,
-        training_sets_folder=training_sets_folder
+        training_sets_folder=training_sets_folder,
+        extra_parameters=extra_parameters
     )
-    compile_training_set(path="./%s" % training_sets_folder)
+    compile_training_set(path="./%s" % training_sets_folder,
+                         extra_parameters=extra_parameters)
 
     jobs = run_low_level(training_sets_folder=training_sets_folder,
                          procs=procs,
-                         queue=queue)
+                         queue=queue,
+                         extra_parameters=extra_parameters)
     for j in jobs:
         j.wait()
     jobs2, failed_sims = run_high_level(
         training_sets_folder=training_sets_folder,
         procs=procs,
-        queue=queue)
+        queue=queue,
+        extra_parameters=extra_parameters)
 
     print("\nThe following simulations failed to converge at low level:")
     for i in failed_sims:
@@ -543,7 +564,8 @@ def create_training_set(run_name,
         if fptr.startswith("ts_") and fptr.endswith("_high"):
             os.system("cp -rf orca/%s %s/" % (fptr, run_name))
 
-    pickle_training_set(run_name, training_sets_folder=run_name)
+    pickle_training_set(run_name, training_sets_folder=run_name,
+                        extra_parameters=extra_parameters)
 
     if not persist:
         shutil.rmtree(training_sets_folder)
