@@ -60,8 +60,12 @@ def run_mcsmrff_optimizer(
         Stuff.
     """
 
+    num_combinations = len(atom_list)
+    if tersoff is not None:
+        num_combinations = len(tersoff)
+
     # Part 1, generation of parameter sets
-    PARAMETER_SETS = create_lhs(num_samples=n_sets)
+    PARAMETER_SETS = create_lhs(num_combinations, num_samples=n_sets)
 
     # Read in the lennard jones and atom list from
     # another mcsmrff .tersoff file

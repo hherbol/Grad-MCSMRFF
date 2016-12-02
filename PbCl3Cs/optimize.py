@@ -14,7 +14,7 @@ three_body_interactions = list(itertools.product(elems, repeat=3))
 path = "/fs/home/hch54/Grad-MCSMRFF/PbCl3Cs/set2/set2.pickle"
 
 mcsmrff_opt.run_mcsmrff_optimizer(
-    n_sets=5,
+    n_sets=20,
     sim_name="test",
     lennard_jones=LJ,
     atom_list=three_body_interactions,
@@ -22,7 +22,7 @@ mcsmrff_opt.run_mcsmrff_optimizer(
     lj_coul=None,
     constant_charge=True,
     new_opt_props={"step_size": 0.1,
-                   "maxiter": 100,
+                   "maxiter": 1000,
                    "perturbation": 1.01,
                    "training_set_file_path": path},
     tersoff_atoms=tersoff_atoms

@@ -303,7 +303,7 @@ def get_gradient(parameters, system, systems_by_composition, run_name,
         else:
             perturbed_parameters[i] = p * perturbation
 
-        p1 = perturbed_parameters[:nLJ].reshape((-1, len(p_lj)))
+        p1 = perturbed_parameters[:nLJ].reshape((-1, len(p_lj[0])))
         p2 = perturbed_parameters[nLJ:]
 
         run_lammps(atoms, systems_by_composition, tersoff_atoms,

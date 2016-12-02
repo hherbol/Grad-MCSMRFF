@@ -3,6 +3,7 @@ import pyDOE.doe_lhs as lhs
 
 
 def create_lhs(
+        N_combinations,
         sample_max=[10, 10, 1000, 1000, 1, 10, 10, 10, 100000, 5, 2, 15, 15],
         sample_min=[0, 0, 0, 0, -1, 0, 0, 0, 0, 2, 0, 0, 0],
         num_samples=1):
@@ -28,7 +29,8 @@ def create_lhs(
 
     # Since there are 27 total entires and 13 parameters per entry we must
     # sample 351 numbers
-    lhs_points = lhs.lhs(351, num_samples)
+    N_points = N_combinations * 13
+    lhs_points = lhs.lhs(N_points, num_samples)
     lhs_list = []
     OldRange = 1
     OldMin = 0
