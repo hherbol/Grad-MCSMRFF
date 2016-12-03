@@ -4,9 +4,15 @@
 # Note, parameters must be a list of [LJ, atom_strs, tersoff]
 
 import files
+import sysconst
+import subprocess
+import jobs
+# import lammps_job
 import structures
 import os
-from sysconst import lammps_mcsmrff as LAMMPS_DIR
+import sys
+import shutil
+# from sysconst import lammps_mcsmrff as LAMMPS_DIR
 from hashlib import md5
 from re import findall
 
@@ -16,45 +22,136 @@ import mcsmrff_utils
 import units
 
 
-def run_mcsmrff(run_name, system, parameters, tersoff_atoms, seed=None):
-    print("\n\n\n")
-    for i in range(5):
-        for j in range(50):
-            print("#"),
-        print("")
-    print("\n\n\n")
+# A function to run an LAMMPS Simulation. Requires a run name and a
+# string of lammps code (run_name and input_script)
+def job(run_name, input_script, system, parameters, queue=None, procs=1,
+        email=None, pair_coeffs_included=True, hybrid_pair=False,
+        hybrid_angle=False, TIP4P=False):
+    """
+    Wrapper to submitting a LAMMPs simulation.
 
+    **Parameters**
+
+        run_name: *str*
+            Name of the simulation to be run.
+        input_script: *str*
+            Input script for LAMMPs simulation.
+        system: :class:`structures.System`
+            System object for our simulation.
+        parameters:
+            PARAMETERS FOR THIS MCSMRFF SIMULATION.
+        tersoff_atoms:
+            TERSOFF ATOMS IN THIS SIMULATION.
+        queue: *str, optional*
+            What queue to run the simulation on (queueing system dependent).
+        procs: *int, optional*
+            How many processors to run the simulation on.
+        email: *str, optional*
+            An email address for sending job information to.
+        pair_coeffs_included: *bool, optional*
+            Whether we have included the pair coefficients to be written
+            to our lammps data file.
+        hybrid_pair: *bool, optional*
+            Whether to detect different treatments of pairing interactions
+            amongs different atom types(True), or not (False).
+        hybrid_angle: *bool, optional*
+            Whether to detect different treatments of angles amongst different
+            atom types (True), or not (False).
+        TIP4P: *bool, optional*
+            Whether to identify TIP4P settings within the lammps data file and
+            update the input file (True), or not (False).
+
+    **Returns**
+
+        job: :class:`jobs.Job`
+            If running locally, return the process handle, else return the
+            job container.
+    """
+    if len(run_name) > 31 and queue is not None:
+        raise Exception("Job name too long (%d) for NBS. Max character \
+length is 31." % len(run_name))
+
+    # Change to correct directory
+    os.system('mkdir -p lammps/%s' % run_name)
+    os.chdir('lammps/%s' % run_name)
+
+    # Generate the lammps data file
+    files.write_lammps_data(system,
+                            pair_coeffs_included=False,
+                            hybrid_pair=hybrid_pair,
+                            hybrid_angle=hybrid_angle)
+    mcsmrff_files.write_params(parameters[0], parameters[1], parameters[2],
+                               run_name, append="")
+
+    # Write the lammps input script. Expects lines of lammps code
+    f = open(run_name + '.in', 'w')
+    f.write(input_script)
+    f.close()
+
+    # Run the simulation
+    if queue is None:
+        cmd_to_run = sysconst.lmp_env_vars
+        cmd_to_run = cmd_to_run + "\n%s -in %s.in -log %s.log"\
+            % (sysconst.lammps_mcsmrff, run_name, run_name)
+
+        process_handle = subprocess.Popen(cmd_to_run, shell=True)
+        job_handle = jobs.Job(run_name, process_handle)
+    else:
+        cmd_to_run = sysconst.lammps_mcsmrff +\
+            " -in " +\
+            (os.getcwd() + '/' + run_name) +\
+            ".in -echo log -log " +\
+            (os.getcwd() + '/' + run_name) +\
+            ".log"
+
+        job_handle = jobs.submit_job(run_name,
+                                     cmd_to_run,
+                                     procs=procs,
+                                     queue=queue,
+                                     additional_env_vars=sysconst.lmp_env_vars,
+                                     email=email,
+                                     preface="mpi")
+
+    # Copy run script
+    fname = sys.argv[0]
+    if '/' in fname:
+        fname = fname.split('/')[-1]
+    try:
+        shutil.copyfile('../../%s' % fname, fname)
+    except IOError:
+        # Submitted a job oddly enough that sys.argv[0]
+        # is not the original python file name, so don't do this
+        pass
+
+    # Return to the appropriate directory
+    os.chdir('../..')
+
+    return job_handle
+
+
+def run_mcsmrff(run_name, system, parameters, tersoff_atoms,
+                queue=None, procs=1, email=None,
+                pair_coeffs_included=True, hybrid_pair=False,
+                hybrid_angle=False, TIP4P=False, seed=None):
     if seed is None:
         seed = str(int(md5(run_name).hexdigest(), 16) % (2**16))
     else:
         seed = str(seed)
     system.name = run_name
 
-    # Change to the correct working directory
-    if not os.path.isdir("lammps"):
-        os.mkdir("lammps")
-    if not os.path.isdir("lammps/%s" % run_name):
-        os.mkdir("lammps/%s" % run_name)
-    os.chdir("lammps/%s" % run_name)
-
-    # Generate files
-    files.write_xyz(system.atoms)
-    files.write_lammps_data(system)
-    mcsmrff_files.write_params(parameters[0], parameters[1], parameters[2],
-                               run_name, append="_input")
-
     # Begin generating string to hold LAMMPS input
     commands = ('''units real
-    atom_style full
-    pair_style hybrid/overlay lj/cut/coul/inout 0.2 0.0 12 tersoff
-    bond_style harmonic
-    angle_style harmonic
-    dihedral_style opls
-    special_bonds lj/coul 0.0 0.0 0.5
+atom_style full
+pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 15 tersoff
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+special_bonds lj/coul 0.0 0.0 0.5
 
-    boundary p p p
-    read_data   ''' + run_name + '''.data
-    ''').splitlines()
+boundary p p p
+read_data   ''' + run_name + '''.data
+
+''').splitlines()
 
     # Removed HN for no H3 input types
     tersoff_types = [t for t in system.atom_types
@@ -66,8 +163,7 @@ def run_mcsmrff(run_name, system, parameters, tersoff_atoms, seed=None):
 
     # Grab the parameters. Could in theory just use "parameters" variable,
     # but too lazy to change code
-    print os.getcwd()
-    for line in open('%s_input.tersoff' % run_name):
+    for line in open('%s.tersoff' % run_name):
         if line.startswith('# Charges:'):
             charges = [float(x) for x in line.split()[2:]]
         if line.startswith('# LJ-sigma:'):
@@ -79,7 +175,7 @@ def run_mcsmrff(run_name, system, parameters, tersoff_atoms, seed=None):
                               ('(\S+) +' * 9)[:-2] +
                               ' *\n +' +
                               ('(\S+) +' * 8)[:-2],
-                              open(run_name + '_input.tersoff').read())
+                              open(run_name + '.tersoff').read())
     inner_cutoffs = {}
     for type_i in tersoff_types:
         for type_j in tersoff_types:
@@ -113,63 +209,59 @@ def run_mcsmrff(run_name, system, parameters, tersoff_atoms, seed=None):
         commands.append('set type %d charge %f' % (i + 1, type_i.charge))
 
     # Generate a LAMMPS structure for an input file
+
     lmp = structures.Struct()
     lmp.file = open(run_name + '.in', 'w')
 
     def writeline(line):
         lmp.file.write(line + '\n')
     lmp.command = writeline
+
     for line in commands:
         lmp.command(line)
 
-    lmp.command('pair_coeff * * tersoff ' + run_name + '_input.tersoff ' +
-                (' '.join([(t.element_name if t in tersoff_types else 'NULL')
-                 for t in system.atom_types])))
+    commands.append('pair_coeff * * tersoff ' + run_name + '.tersoff ' +
+                    (' '.join([(t.element_name
+                              if t in tersoff_types else 'NULL')
+                     for t in system.atom_types])))
 
     for t in system.bond_types:
-        lmp.command('bond_coeff %d  %f %f' % (t.lammps_type, t.e, t.r))
+        commands.append('bond_coeff %d  %f %f' % (t.lammps_type, t.e, t.r))
     for t in system.angle_types:
-        lmp.command('angle_coeff %d %f %f' % (t.lammps_type, t.e, t.angle))
+        commands.append('angle_coeff %d %f %f' % (t.lammps_type, t.e, t.angle))
     for t in system.dihedral_types:
-        lmp.command('dihedral_coeff %d  %f %f %f %f' %
-                    ((t.lammps_type,) + t.e))
+        commands.append('dihedral_coeff %d  %f %f %f %f' %
+                        ((t.lammps_type,) + t.e))
 
-    commands = '''
-    neigh_modify every 1 check yes delay 0
-    dump    1 all xyz 100 ''' + run_name + '''.xyz
-    dump_modify 1 element ''' + elems_by_index + '''
-    dump    2 all custom 100 ''' + run_name + '''2.dump type xu yu zu
-    thermo_style custom step temp press ke pe epair emol vol
-    thermo 1000
+    commands.append('''
+neigh_modify every 1 check yes delay 0
+dump    1 all xyz 100 ''' + run_name + '''.xyz
+dump_modify 1 element ''' + elems_by_index + '''
+dump    2 all custom 100 ''' + run_name + '''2.dump type xu yu zu
+thermo_style custom step temp press ke pe epair emol vol
+thermo 1000
 
-    group mobile id > 0
+group mobile id > 0
 
-    velocity all create 10.0 ''' + seed + ''' rot yes dist gaussian
-    timestep 0.01
+velocity all create 10.0 ''' + seed + ''' rot yes dist gaussian
+timestep 0.01
 
-    fix press all npt temp 10.0 10.0 10.0 iso 0.0 0.0 100.0
-    run 50000
-    #run 100000
-    unfix press
+fix press all npt temp 10.0 10.0 10.0 iso 0.0 0.0 100.0
+run 50000
+unfix press
 
-    fix motion all nvt temp 10.0 300.0 100.0
-    run 200000
-    #run 300000
-    '''
-    for line in commands.splitlines():
-        lmp.command(line)
+fix motion all nvt temp 10.0 300.0 100.0
+run 200000
+''')
 
-    lmp.file.close()
+    # job(run_name, commands, system, queue=None, hybrid_angle=False)
+    J = job(run_name, "\n".join(commands), system, parameters, queue=queue,
+            procs=procs, email=email,
+            pair_coeffs_included=pair_coeffs_included,
+            hybrid_pair=hybrid_pair, hybrid_angle=hybrid_angle, TIP4P=TIP4P)
+    return J
 
-    os.system('%s -in %s.in -log %s.log' % (LAMMPS_DIR, run_name, run_name))
-    os.chdir("../../")
-
-    print("\n\n\n")
-    for i in range(5):
-        for j in range(50):
-            print("#"),
-        print("")
-    print("\n\n\n")
+# os.system('%s -in %s.in -log %s.log' % (LAMMPS_DIR, run_name, run_name))
 
 
 def get_glimpse(s, tersoff_atoms):
